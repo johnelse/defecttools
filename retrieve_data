@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+# 
+# Copyright (c) 2006-2012 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and
+# conditions as licensed by XenSource, Inc. All other rights reserved.
+#
+# Rok Strnisa <rok.strnisa@citrix.com>, September 2010
+#
+
+# Observe which defects are in which filter, and update observations in the database.
+
+import os
+import time
+import sys
+import string
+import xmlrpclib
+import jira
+
+import config
+
+from sqlite3 import *
+
+def list_tickets(j, filter_name):
+    issues = []
+    try:
+        issues = j.getIssuesFromFilterName(filter_name)
+    except:
+        sys.stderr.write("Skipping filter: %s" % filter_name)
+    return map(lambda issue:issue.getKey(), issues)
+
+def list_filters(conn):
+    curs = conn.cursor()
+    try:
+        curs.execute("select * from filters")
+        results = {}
+        for row in curs:
+            results[row[0]] = str(row[1])
+        return results
+    finally:
+        curs.close()
+
+def add_observation(conn, filter_id, ticket, time):
+    curs = conn.cursor()
+    try:
+        curs.execute("insert into observations values ('%d','%s', %.0f)" % (filter_id, ticket, time))
+    finally:
+        curs.close()
+
+def register_ticket(conn, ticket):
+    curs = conn.cursor()
+    try:
+        curs.execute("select * from tickets where id='%s'" % ticket)
+        if curs.fetchall() == []:
+            curs.execute("insert into tickets values ('%s', '')" % ticket)
+    finally:
+        curs.close()
+
+if __name__ == "__main__":
+    config.load_config()
+    j = jira.Jira(config.url, config.username, config.password)
+
+    conn = connect('/srv/defect_dashboard/data/tickets.db')
+    t = time.time()
+    filters = list_filters(conn)
+    for filter_id in filters.keys():
+        filter_name = filters[filter_id]
+        print "Filter %d: %s" % (filter_id, filter_name)
+        print "------------------------------------------"
+        for ticket in list_tickets(j, filter_name):
+            print ticket
+            add_observation(conn, filter_id, ticket, t)
+            register_ticket(conn, ticket)
+    conn.commit()
