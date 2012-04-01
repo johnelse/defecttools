@@ -127,11 +127,11 @@ def inflow(f, conn, filter_id, filter_name, all_times, graph_range):
     print >>f, "{chart:type=xybar|timeSeries=true|rangeAxisTickUnit=1|rangeAxisLowerBound=%d|rangeAxisUpperBound=%s|dateFormat=dd.MM.yyyy|dataOrientation=vertical|colors=red,blue}" % (graph_range[0], graph_range[1])
     print >>f, "||Date||Inflow||"
 
-    for t in all.keys():
+    for t in sorted(all.keys()):
         print >>f, "|", format_date(t), "|%d|" % len(all[t][0])
     print >>f, ""
     print >>f, "||Date||Outflow||"
-    for t in all.keys():
+    for t in sorted(all.keys()):
         print >>f, "|", format_date(t), "|%d|" % (0-len(all[t][1]))
     print >>f, "{chart}",
 
