@@ -125,8 +125,18 @@ def choose_range(conn, all_filters, all_times):
             smallest = max(smallest, len(all[t][1]))
     return (0-smallest, biggest)
 
+import csv
+
+def write_csv(filter_name, all):
+    f = open("/home/ring3defects/public_html/csv/%s.csv" % filter_name, "wb")
+    writer = csv.writer(f)
+    for k in sorted(all.keys()):
+        writer.writerow([format_date(k), len(all[k][0]), (0 - len(all[k][1]))])
+    f.close()
+
 def inflow(f, conn, filter_id, filter_name, all_times, graph_range):
     all = suppress_transient(flow(conn, filter_id, all_times))
+    write_csv(filter_name, all)
     print >>f, "{chart:type=xybar|timeSeries=true|rangeAxisTickUnit=1|rangeAxisLowerBound=%d|rangeAxisUpperBound=%s|dateFormat=dd.MM.yyyy|dataOrientation=vertical|colors=red,blue}" % (graph_range[0], graph_range[1])
     print >>f, "||Date||Inflow||"
 
