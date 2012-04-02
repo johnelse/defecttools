@@ -57,7 +57,7 @@ def register_ticket(conn, ticket):
 
 if __name__ == "__main__":
     config.load_config()
-    j = jira.Jira(config.url, config.username, config.password)
+    j = jira.Jira(config.jira_url, config.username, config.password)
 
     conn = connect('/srv/defect_dashboard/data/tickets.db')
     t = time.time()
