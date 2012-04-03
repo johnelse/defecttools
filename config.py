@@ -6,6 +6,7 @@
 
 import getpass
 import os
+import sys
 
 config_file = ".defects.rc"
 
@@ -13,9 +14,10 @@ jira_url       = None
 confluence_url = None
 username       = None
 password       = None
+database       = None
 
 def load_config():
-    global jira_url, confluence_url, username, password
+    global jira_url, confluence_url, username, password, database
     if None in [jira_url, confluence_url, username, password]:
         user = getpass.getuser()
         homedir = os.path.expanduser("~" + user)
@@ -36,6 +38,8 @@ def load_config():
                             username = value
                         elif (password is None) and (key == "password"):
                             password = value
+                        elif (database is None) and (key == "database"):
+                            database = value
             finally:
                 f.close()
         except:

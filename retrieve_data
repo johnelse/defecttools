@@ -59,7 +59,7 @@ if __name__ == "__main__":
     config.load_config()
     j = jira.Jira(config.jira_url, config.username, config.password)
 
-    conn = connect('/srv/defect_dashboard/data/tickets.db')
+    conn = connect(config.database)
     t = time.time()
     filters = list_filters(conn)
     for filter_id in filters.keys():

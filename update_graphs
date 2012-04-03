@@ -242,7 +242,7 @@ def one_team(conn, team_id, team_name):
 
 if __name__ == "__main__":
     config.load_config()
-    conn = connect('/srv/defect_dashboard/data/tickets.db')
+    conn = connect(config.database)
 
     all_teams = list_teams(conn)
 

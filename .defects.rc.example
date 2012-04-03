@@ -2,3 +2,4 @@ jira_url=http://jira.example.com
 confluence_url=http://confluence.example.com
 username=me
 password=mypassword
+database=/path/to/database.db
