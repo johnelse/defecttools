@@ -14,9 +14,9 @@ import time
 import sys
 import string
 import xmlrpclib
-import jira
 
 import config
+from jiralib import jira
 
 from sqlite3 import *
 
