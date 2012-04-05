@@ -57,7 +57,7 @@ def register_ticket(conn, ticket):
 
 if __name__ == "__main__":
     config.load_config()
-    j = jira.Jira(config.jira_url, config.username, config.password)
+    j = jira.Jira(config.jira_url, config.jira_username, config.jira_password)
 
     conn = connect(config.database)
     t = time.time()

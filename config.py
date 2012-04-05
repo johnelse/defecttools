@@ -10,15 +10,19 @@ import sys
 
 config_file = ".defects.rc"
 
-jira_url       = None
-confluence_url = None
-username       = None
-password       = None
-database       = None
+jira_url            = None
+jira_username       = None
+jira_password       = None
+confluence_url      = None
+confluence_username = None
+confluence_password = None
+database            = None
 
 def load_config():
-    global jira_url, confluence_url, username, password, database
-    if None in [jira_url, confluence_url, username, password]:
+    global jira_url, jira_username, jira_password
+    global confluence_url, confluence_username, confluence_password
+    global database
+    if None in [jira_url, jira_username, jira_password, confluence_url, confluence_username, confluence_password, database]:
         user = getpass.getuser()
         homedir = os.path.expanduser("~" + user)
         filename = os.path.join(homedir, config_file)
@@ -32,12 +36,16 @@ def load_config():
                         value = pair[1][0:-1]
                         if (jira_url is None) and (key == "jira_url"):
                             jira_url = value
+                        if (jira_username is None) and (key == "jira_username"):
+                            jira_username = value
+                        if (jira_password is None) and (key == "jira_password"):
+                            jira_password = value
                         elif (confluence_url is None) and (key == "confluence_url"):
                             confluence_url = value
-                        elif (username is None) and (key == "username"):
-                            username = value
-                        elif (password is None) and (key == "password"):
-                            password = value
+                        elif (confluence_username is None) and (key == "confluence_username"):
+                            confluence_username = value
+                        elif (confluence_password is None) and (key == "confluence_password"):
+                            confluence_password = value
                         elif (database is None) and (key == "database"):
                             database = value
             finally:
