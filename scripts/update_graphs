@@ -18,7 +18,7 @@ import json
 import urllib
 import re
 
-import config
+from defecttools.lib import config
 
 from sqlite3 import *
 

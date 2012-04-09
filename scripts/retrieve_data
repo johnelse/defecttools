@@ -15,8 +15,8 @@ import sys
 import string
 import xmlrpclib
 
-import config
-from jiralib import jira
+from defecttools.lib import config
+from defecttools.jiralib import jira
 
 from sqlite3 import *
 
