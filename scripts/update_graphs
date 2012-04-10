@@ -19,6 +19,7 @@ import urllib
 import re
 
 from defecttools.lib import config
+from defecttools.jiralib import jira
 
 from sqlite3 import *
 
@@ -189,6 +190,10 @@ def list_merges(f):
             title = p.sub(r'[CA-\1@scale]', title)
             print >>f, "| %s | %s | %s |" % (merged_at, who, title)
 
+def get_link_markup(_jira, filter_name):
+    filter_url = _jira.getFilterUrl(filter_name)
+    return "[%s|%s]" % (filter_name, filter_url)
+
 def update_dashboard(content, team_name):
     s = xmlrpclib.Server("%s/rpc/xmlrpc" % config.confluence_url)
     token = s.confluence1.login(config.confluence_username, config.confluence_password)
@@ -197,10 +202,11 @@ def update_dashboard(content, team_name):
     page["content"] = content
     s.confluence1.storePage(token, page)
 
-def one_team(conn, team_id, team_name):
+def one_team(conn, _jira, team_id, team_name):
     all_times = list_times(conn, team_id)
 
     all_filters = list_filters(conn, team_id)
+    filter_links = map(lambda filter_name: get_link_markup(_jira, filter_name), all_filters.values())
 
     graph_range = choose_overall_range(conn, all_filters, all_times)
 
@@ -210,7 +216,7 @@ def one_team(conn, team_id, team_name):
     print >>f, "This page is automatically generated; do not edit."
     print >>f, "h1. Status"
     print >>f, "Total number of tickets (vertical) against time (horizontal). Lower is better."
-    print >>f, "||", "||".join(all_filters.values()), "||"#
+    print >>f, "||", "||".join(filter_links), "||"#
     for filter_id in all_filters.keys():
         filter_name = all_filters[filter_id]
         print >>f, "|",
@@ -223,7 +229,7 @@ def one_team(conn, team_id, team_name):
     print >>f, "h1. Daily Inflow/ Outflow"
     print >>f, "Positive (upwards, red, bad) means inflow; negative (downwards, blue, good) means outflow."
     print >>f, "Note: the initial transient inflow datapoint has been removed"
-    print >>f, "||", "||".join(all_filters.values()), "||"#
+    print >>f, "||", "||".join(filter_links), "||"#
     for filter_id in all_filters.keys():
         filter_name = all_filters[filter_id]
         print >>f, "|",
@@ -243,8 +249,9 @@ def one_team(conn, team_id, team_name):
 if __name__ == "__main__":
     config.load_config()
     conn = connect(config.database)
+    _jira = jira.Jira(config.jira_url, config.jira_username, config.jira_password)
 
     all_teams = list_teams(conn)
 
     for team_id in all_teams.keys():
-        one_team(conn, team_id, all_teams[team_id])
+        one_team(conn, _jira, team_id, all_teams[team_id])
