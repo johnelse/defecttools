@@ -228,7 +228,7 @@ def one_team(conn, _jira, team_id, team_name):
     print >>f
 
     graph_range = choose_range(conn, all_filters, all_times)
-    
+
     print >>f, "h1. Daily Inflow/ Outflow"
     print >>f, "Positive (upwards, red, bad) means inflow; negative (downwards, blue, good) means outflow."
     print >>f, "Note: the initial transient inflow datapoint has been removed"
