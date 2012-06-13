@@ -89,7 +89,8 @@ def delta(conn, filter_id, prev_t, t):
     tickets_nochange = current.intersection(tickets)
     tickets_in = tickets.symmetric_difference(tickets_nochange)
     tickets_out = current.symmetric_difference(tickets_nochange)
-    return (tickets_in, tickets_out, tickets_nochange)
+    tickets_total = len(tickets)
+    return (tickets_in, tickets_out, tickets_nochange, tickets_total)
 
 def flow(conn, filter_id, all_times):
     prev_t = 0
@@ -108,7 +109,7 @@ def suppress_transient(flow):
         else:
             if flow[t][0] <> set([]):
                 started = True
-            results[t] = (set([]), set([]), set([]))
+            results[t] = (set([]), set([]), set([]), flow[t][3])
     return results
 
 def format_date(t):
@@ -131,7 +132,7 @@ def write_csv(filter_name, all):
     f = open("/home/ring3defects/public_html/csv/%s.csv" % filter_name, "wb")
     writer = csv.writer(f)
     for k in sorted(all.keys()):
-        writer.writerow([format_date(k), len(all[k][0]), (0 - len(all[k][1]))])
+        writer.writerow([format_date(k), len(all[k][0]), (0 - len(all[k][1])), all[k][3]])
     f.close()
 
 def inflow(f, conn, filter_id, filter_name, all_times, graph_range):
