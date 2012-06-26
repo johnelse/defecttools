@@ -26,14 +26,13 @@ def ticket_url(ticket):
 ######################################################################
 
 # Add the global config username to the watch list of each ticket.
-def watch(browser, tickets):
-    for ticket in tickets:
-        print "Watching ticket %s" % ticket
-        browser.open(ticket_url(ticket))
-        browser.follow_link(text_regex = r"Watching", nr=0)
-        browser.select_form(name = "startform")
-        browser["userNames"] = config.jira_username
-        browser.submit()
+def watch(browser, ticket):
+    print "Watching ticket %s" % ticket
+    browser.open(ticket_url(ticket))
+    browser.follow_link(text_regex = r"Watching", nr=0)
+    browser.select_form(name = "startform")
+    browser["userNames"] = config.jira_username
+    browser.submit()
 
 ######################################################################
 # Functions used by all commands.
@@ -71,7 +70,8 @@ if __name__ == "__main__":
         command = sys.argv[1]
         tickets = sys.argv[2].split(",")
         if dispatcher.has_key(command):
-            dispatcher[command](browser, tickets)
+            for ticket in tickets:
+                dispatcher[command](browser, ticket)
         else:
             print "Unknown command."
             usage()
