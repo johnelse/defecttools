@@ -103,7 +103,7 @@ if __name__ == "__main__":
         usage()
     else:
         command = sys.argv[1]
-        tickets = sys.argv[2:]
+        tickets = map(string.upper, sys.argv[2:])
         if dispatcher.has_key(command):
             config.load_config()
             browser = jira_login()
