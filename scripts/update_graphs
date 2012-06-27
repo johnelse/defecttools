@@ -203,6 +203,7 @@ def update_dashboard(content, team_name):
     s.confluence1.storePage(token, page)
 
 def one_team(conn, _jira, team_id, team_name):
+    print "Updating page for team \"%s\"" % team_name
     all_times = list_times(conn, team_id)
 
     all_filters = list_filters(conn, team_id)
