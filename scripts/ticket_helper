@@ -98,12 +98,12 @@ dispatcher = {
 }
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print "Expected 3 arguments."
+    if len(sys.argv) < 3:
+        print "Expected at least 3 arguments."
         usage()
     else:
         command = sys.argv[1]
-        tickets = sys.argv[2].split(",")
+        tickets = sys.argv[2:]
         if dispatcher.has_key(command):
             config.load_config()
             browser = jira_login()
