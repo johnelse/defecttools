@@ -7,12 +7,15 @@
 
 # Helper script for handling CA tickets in ways not supported by the Jira API.
 
+from BeautifulSoup import BeautifulSoup
 from defecttools.lib import config
+import csv
 import mechanize
+import string
 import sys
 
 ######################################################################
-# Helper functions
+# URL helper functions.
 ######################################################################
 
 def login_url():
@@ -21,9 +24,42 @@ def login_url():
 def ticket_url(ticket):
     return ("%s/browse/%s" % (config.jira_url, ticket))
 
+def change_history_url(ticket):
+    return ("%s?page=com.atlassian.jira.plugin.system.issuetabpanels:changehistory-tabpanel" % ticket_url(ticket))
+
+######################################################################
+# Document scraping functions.
+######################################################################
+
+def get_description(tree):
+    header = tree.findAll("h3", "formtitle")[0]
+    return header.contents[1]
+
+def get_priority(tree):
+    row = tree.findAll(name = "table", id = "issuedetails")[0].contents[7]
+    return row.findAll(text = True)[4]
+
+def try_with_default(tree, f, default):
+    try:
+        result = f(tree)
+        return string.strip(result)
+    except:
+        return default
+
 ######################################################################
 # Functions corresponding to the available commands.
 ######################################################################
+
+# Attempt to find as much useful information about a ticket as possible.
+# Print the result as a line of csv.
+def summarise(browser, ticket):
+    response = browser.open(change_history_url(ticket))
+    html = response.get_data()
+    tree = BeautifulSoup(html)
+    results = [ticket] + map(lambda f: try_with_default(tree, f, "unknown"),
+        [get_description, get_priority])
+    writer = csv.writer(sys.stdout)
+    writer.writerow(results)
 
 # Add the global config username to the watch list of each ticket.
 def watch(browser, ticket):
@@ -57,6 +93,7 @@ Usage:
 """
 
 dispatcher = {
+    "summarise": summarise,
     "watch": watch,
 }
 
