@@ -129,11 +129,22 @@ def choose_range(conn, all_filters, all_times):
 import csv
 
 def write_csv(filter_name, all):
-    f = open("/home/ring3defects/public_html/csv/%s.csv" % filter_name, "wb")
-    writer = csv.writer(f)
+    totals_file = open("/home/ring3defects/public_html/csv/inflow_outflow_totals/%s.csv" % filter_name, "wb")
+    tickets_file = open("/home/ring3defects/public_html/csv/inflow_outflow_tickets/%s.csv" % filter_name, "wb")
+    totals_writer = csv.writer(totals_file)
+    tickets_writer = csv.writer(tickets_file)
     for k in sorted(all.keys()):
-        writer.writerow([format_date(k), len(all[k][0]), (0 - len(all[k][1])), all[k][3]])
-    f.close()
+        date = format_date(k)
+        inflow = all[k][0]
+        outflow = all[k][1]
+        total = all[k][3]
+        totals_writer.writerow([date, len(inflow), (0 - len(outflow)), total])
+        for ticket in inflow:
+            tickets_writer.writerow([date, ticket, 1])
+        for ticket in outflow:
+            tickets_writer.writerow([date, ticket, -1])
+    totals_file.close()
+    tickets_file.close()
 
 def inflow(f, conn, filter_id, filter_name, all_times, graph_range):
     all = suppress_transient(flow(conn, filter_id, all_times))
