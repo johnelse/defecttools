@@ -52,23 +52,31 @@ def try_with_default(tree, f, default):
 
 # Attempt to find as much useful information about a ticket as possible.
 # Print the result as a line of csv.
-def summarise(browser, ticket):
+def summarise_one(browser, ticket, writer):
     response = browser.open(change_history_url(ticket))
     html = response.get_data()
     tree = BeautifulSoup(html)
     results = [ticket] + map(lambda f: try_with_default(tree, f, "unknown"),
         [get_description, get_priority])
-    writer = csv.writer(sys.stdout)
     writer.writerow(results)
 
+def summarise(browser, tickets):
+    writer = csv.writer(sys.stdout)
+    for ticket in tickets:
+        summarise_one(browser, ticket, writer)
+
 # Add the global config username to the watch list of each ticket.
-def watch(browser, ticket):
+def watch_one(browser, ticket):
     print "Watching ticket %s" % ticket
     browser.open(ticket_url(ticket))
     browser.follow_link(text_regex = r"Watching", nr=0)
     browser.select_form(name = "startform")
     browser["userNames"] = config.jira_username
     browser.submit()
+
+def watch(browser, tickets):
+    for ticket in tickets:
+        watch_one(browser, ticket)
 
 ######################################################################
 # Functions used by all commands.
@@ -107,8 +115,7 @@ if __name__ == "__main__":
         if dispatcher.has_key(command):
             config.load_config()
             browser = jira_login()
-            for ticket in tickets:
-                dispatcher[command](browser, ticket)
+            dispatcher[command](browser, tickets)
         else:
             print "Unknown command: %s" % command
             usage()
