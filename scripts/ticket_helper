@@ -71,7 +71,7 @@ def summarise(browser, tickets):
     for ticket in tickets:
         summarise_one(browser, ticket, writer)
 
-# Add the global config username to the watch list of each ticket.
+# Add the global config username to the watch list of the ticket.
 def watch_one(browser, ticket):
     print "Watching ticket %s" % ticket
     browser.open(ticket_url(ticket))
@@ -80,6 +80,7 @@ def watch_one(browser, ticket):
     browser["userNames"] = config.jira_username
     browser.submit()
 
+# Watch each ticket in the list.
 def watch(browser, tickets):
     for ticket in tickets:
         watch_one(browser, ticket)
