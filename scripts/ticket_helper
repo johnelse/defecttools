@@ -50,18 +50,24 @@ def try_with_default(tree, f, default):
 # Functions corresponding to the available commands.
 ######################################################################
 
+field_getters = [
+    ("Description", get_description),
+    ("Priority", get_priority),
+]
+
 # Attempt to find as much useful information about a ticket as possible.
 # Print the result as a line of csv.
 def summarise_one(browser, ticket, writer):
     response = browser.open(change_history_url(ticket))
     html = response.get_data()
     tree = BeautifulSoup(html)
-    results = [ticket] + map(lambda f: try_with_default(tree, f, "unknown"),
-        [get_description, get_priority])
+    results = [ticket] + map(lambda (_, f): try_with_default(tree, f, "unknown"), field_getters)
     writer.writerow(results)
 
+# Write a header showing the field names, then find the fields for each ticket.
 def summarise(browser, tickets):
     writer = csv.writer(sys.stdout)
+    writer.writerow(["Key"] + map(lambda (key, _): key, field_getters))
     for ticket in tickets:
         summarise_one(browser, ticket, writer)
 
