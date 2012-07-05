@@ -85,6 +85,30 @@ def watch(browser, tickets):
     for ticket in tickets:
         watch_one(browser, ticket)
 
+# Add the "FIXED: " prefix to the summary, and "fix-tr3" to the tags.
+def fix_one(browser, ticket):
+    print "Marking ticket %s as fixed" % ticket
+    fixed_prefix = "FIXED: "
+    fixed_tag = "fix-tr3"
+    browser.open(ticket_url(ticket))
+    browser.follow_link(text_regex = r"Edit", nr=0)
+    browser.select_form(name = "jiraform")
+    # Update tags.
+    tags = browser["customfield_10190"].split(" ")
+    if not fixed_tag in tags:
+        tags.append(fixed_tag)
+        browser["customfield_10190"] = " ".join(tags)
+    # Update summary.
+    summary = browser["summary"]
+    if not summary[0:len(fixed_prefix)] == fixed_prefix:
+        browser["summary"] = fixed_prefix + summary
+    browser.submit()
+
+# Mark each ticket in the list as fixed.
+def fix(browser, tickets):
+    for ticket in tickets:
+        fix_one(browser, ticket)
+
 ######################################################################
 # Functions used by all commands.
 ######################################################################
@@ -110,6 +134,7 @@ Usage:
 dispatcher = {
     "summarise": summarise,
     "watch": watch,
+    "fix": fix,
 }
 
 if __name__ == "__main__":
