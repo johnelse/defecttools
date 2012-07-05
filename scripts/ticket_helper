@@ -125,17 +125,20 @@ def jira_login():
     browser.submit()
     return browser
 
-def usage():
-    print """
-Usage:
-    %s command ticket1(,ticket2(,ticket3...))
-"""
-
 dispatcher = {
     "summarise": summarise,
     "watch": watch,
     "fix": fix,
 }
+
+def usage():
+    print """
+Usage:
+    %s command ticket1(,ticket2(,ticket3...))
+
+    Available commands:
+        %s
+""" % (sys.argv[0], "; ".join(dispatcher.keys()))
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
