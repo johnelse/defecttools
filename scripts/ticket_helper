@@ -28,6 +28,16 @@ def change_history_url(ticket):
     return ("%s?page=com.atlassian.jira.plugin.system.issuetabpanels:changehistory-tabpanel" % ticket_url(ticket))
 
 ######################################################################
+# Other helper functions.
+######################################################################
+
+def get_words(value, separator):
+    if string.strip(value) == "":
+        return []
+    else:
+        return string.split(value, separator)
+
+######################################################################
 # Document scraping functions.
 ######################################################################
 
@@ -94,7 +104,7 @@ def fix_one(browser, ticket):
     browser.follow_link(text_regex = r"Edit", nr=0)
     browser.select_form(name = "jiraform")
     # Update tags.
-    tags = browser["customfield_10190"].split(" ")
+    tags = get_words(browser["customfield_10190"], " ")
     if not fixed_tag in tags:
         tags.append(fixed_tag)
         browser["customfield_10190"] = " ".join(tags)
