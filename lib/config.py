@@ -30,7 +30,7 @@ def load_config():
             f = open(filename)
             try:
                 for line in f:
-                    pair = line.split("=")
+                    pair = line.split("=", 1)
                     if len(pair) == 2:
                         key  = pair[0]
                         value = pair[1][0:-1]
