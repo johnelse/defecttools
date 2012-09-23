@@ -37,7 +37,7 @@ def list_teams(conn):
 def list_filters(conn, team_id):
     curs = conn.cursor()
     try:
-        curs.execute("select * from filters where team_id=%d" % team_id)
+        curs.execute("select * from filters where team_id=%d order by id asc" % team_id)
         results = {}
         for row in curs:
             results[row[0]] = str(row[1])
