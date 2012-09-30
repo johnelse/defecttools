@@ -56,10 +56,10 @@ def register_ticket(conn, ticket):
         curs.close()
 
 if __name__ == "__main__":
-    config.load_config()
-    j = jira.Jira(config.jira_url, config.jira_username, config.jira_password)
+    _config = config.get_config()
+    j = jira.Jira(_config.jira_url, _config.jira_username, _config.jira_password)
 
-    conn = connect(config.database)
+    conn = connect(_config.database)
     t = time.time()
     filters = list_filters(conn)
     for filter_id in filters.keys():

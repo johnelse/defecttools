@@ -23,6 +23,8 @@ from defecttools.jiralib import jira
 
 from sqlite3 import *
 
+_config = config.get_config()
+
 def list_teams(conn):
     curs = conn.cursor()
     try:
@@ -195,8 +197,8 @@ def get_link_markup(_jira, filter_name):
     return "[%s|%s]" % (filter_name, filter_url)
 
 def update_dashboard(content, team_name):
-    s = xmlrpclib.Server("%s/rpc/xmlrpc" % config.confluence_url)
-    token = s.confluence1.login(config.confluence_username, config.confluence_password)
+    s = xmlrpclib.Server("%s/rpc/xmlrpc" % _config.confluence_url)
+    token = s.confluence1.login(_config.confluence_username, _config.confluence_password)
     name = "Dave's Defect Dashboard (%s)" % team_name
     page = s.confluence1.getPage(token, "Ring3", name)
     page["content"] = content
@@ -248,9 +250,8 @@ def one_team(conn, _jira, team_id, team_name):
     f.close()
 
 if __name__ == "__main__":
-    config.load_config()
-    conn = connect(config.database)
-    _jira = jira.Jira(config.jira_url, config.jira_username, config.jira_password)
+    conn = connect(_config.database)
+    _jira = jira.Jira(_config.jira_url, _config.jira_username, _config.jira_password)
 
     all_teams = list_teams(conn)
 

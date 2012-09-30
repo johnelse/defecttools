@@ -14,15 +14,17 @@ import mechanize
 import string
 import sys
 
+_config = config.get_config()
+
 ######################################################################
 # URL helper functions.
 ######################################################################
 
 def login_url():
-    return ("%s/secure/Dashboard.jspa" % config.jira_url)
+    return ("%s/secure/Dashboard.jspa" % _config.jira_url)
 
 def ticket_url(ticket):
-    return ("%s/browse/%s" % (config.jira_url, ticket))
+    return ("%s/browse/%s" % (_config.jira_url, ticket))
 
 def change_history_url(ticket):
     return ("%s?page=com.atlassian.jira.plugin.system.issuetabpanels:changehistory-tabpanel" % ticket_url(ticket))
@@ -87,7 +89,7 @@ def watch_one(browser, ticket):
     browser.open(ticket_url(ticket))
     browser.follow_link(text_regex = r"Watching", nr=0)
     browser.select_form(name = "startform")
-    browser["userNames"] = config.jira_username
+    browser["userNames"] = _config.jira_username
     browser.submit()
 
 # Watch each ticket in the list.
@@ -130,8 +132,8 @@ def jira_login():
     browser = mechanize.Browser()
     browser.open(url)
     browser.select_form(name = "loginform")
-    browser["os_username"] = config.jira_username
-    browser["os_password"] = config.jira_password
+    browser["os_username"] = _config.jira_username
+    browser["os_password"] = _config.jira_password
     browser.submit()
     return browser
 
@@ -158,7 +160,6 @@ if __name__ == "__main__":
         command = sys.argv[1]
         tickets = map(string.upper, sys.argv[2:])
         if dispatcher.has_key(command):
-            config.load_config()
             browser = jira_login()
             dispatcher[command](browser, tickets)
         else:
