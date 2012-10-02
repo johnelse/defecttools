@@ -1,10 +1,16 @@
-# Jira config.
-jira_url="http://jira.example.com"
-jira_username="my_jira_username"
-jira_password="my_jira_password"
-# Confluence config.
-confluence_url="http://confluence.example.com"
-confluence_username="my_jira_username"
-confluence_password="my_jira_password"
-# Misc. config.
-database="/path/to/database.db"
+# Jira.
+jira_url = "http://jira.example.com"
+jira_username = "my_jira_username"
+jira_password = "my_jira_password"
+# Confluence.
+confluence_url = "http://confluence.example.com"
+confluence_username = "my_jira_username"
+confluence_password = "my_jira_password"
+# IRC.
+irc_server = "irc.example.com"
+irc_port = 6667
+irc_password = "password"
+irc_nick = "defectbot"
+irc_channel = "#defectbottest"
+# Misc.
+database = "/path/to/database.db"
