@@ -4,8 +4,6 @@ import select
 import socket
 import string
 
-from multiprocessing import Pipe, Process
-
 class IRCMessage():
     def __init__(self, msg):
         # Basic parsing of a raw IRC message.
