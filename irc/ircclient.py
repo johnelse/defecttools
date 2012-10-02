@@ -58,8 +58,7 @@ class IRCClient():
 
     # Override this to enable the client to respond to chat messages.
     def on_recv(self, msg):
-        print "Got message: sender=%s command=%s target=%s message=%s" %
-            (msg.sender, msg.command, msg.target, msg.message)
+        pass
 
     def start(self):
         read_buffer = ""
