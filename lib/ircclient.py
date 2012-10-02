@@ -58,13 +58,9 @@ class IRCClient():
         self.send_nick()
         self.send_user()
 
-    def on_recv(self, line):
-        if line[0:4] == "PING":
-            # Server has pinged me - return a PONG.
-            self.send_pong(line[5:])
-        else:
-            msg = IRCMessage(line)
-            print msg
+    # Override this to enable the client to respond to chat messages.
+    def on_recv(self, msg):
+        print "Got message: %s" % msg
 
     def start(self):
         read_buffer = ""
@@ -82,7 +78,12 @@ class IRCClient():
                     for line in lines:
                         # Remove trailing \r
                         line = string.rstrip(line)
-                        self.on_recv(line)
+                        if line[0:4] == "PING":
+                            # Handle PING from server.
+                            self.send_pong(line[5:])
+                        else:
+                            msg = IRCMessage(line)
+                            self.on_recv(msg)
                 else:
                     # Read from one of the command file descriptors.
                     handler = self.handlers[fd]
