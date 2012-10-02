@@ -12,12 +12,21 @@ import sys
 config_file = ".defecttools/config.py"
 
 expected_keys = [
+    # Jira.
     "jira_url",
     "jira_username",
     "jira_password",
+    # Confluence.
     "confluence_url",
     "confluence_username",
     "confluence_password",
+    # IRC.
+    "irc_server",
+    "irc_port",
+    "irc_password",
+    "irc_nick",
+    "irc_channel",
+    # Misc.
     "database"
     ]
 
