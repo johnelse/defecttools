@@ -3,16 +3,20 @@ from multiprocessing import Pipe, Process
 
 import re
 
-# Simple bot implementation which echos, via PRIVMSG, any messages addressed to it.
+# Simple bot implementation which echos, in channel, any messages addressed to it.
 class DefectBot(ircclient.IRCClient):
+    def send_join(self, channel):
+        self.channel = channel
+        ircclient.IRCClient.send_join(self, channel)
+
     def on_recv(self, msg):
-        if msg.message:
+        if msg.message and self.channel:
             prefix = re.compile("%s: (.*)" % self.nick)
             matches = prefix.match(msg.message)
             if matches:
                 data = matches.group(1)
                 sender_nick = msg.sender.split("!")[0]
-                self.send_privmsg(sender_nick, data)
+                self.send_privmsg(self.channel, data)
 
 # Join the bot to a channel and start its event loop.
 def run(server, port, nick, password, channel, handlers):
