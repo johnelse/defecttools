@@ -20,12 +20,12 @@ from defecttools.jiralib import jira
 
 from sqlite3 import *
 
-def list_tickets(j, filter_name):
+def list_tickets(j, filter_id):
     issues = []
     try:
-        issues = j.getIssuesFromFilterName(filter_name)
+        issues = j.getIssuesFromFilter(filter_id)
     except:
-        sys.stderr.write("Skipping filter: %s" % filter_name)
+        sys.stderr.write("Skipping filter: %s" % filter_id)
     return map(lambda issue:issue.getKey(), issues)
 
 def list_filters(conn):
@@ -62,12 +62,13 @@ if __name__ == "__main__":
     conn = connect(_config.database)
     t = time.time()
     filters = list_filters(conn)
-    for filter_id in filters.keys():
-        filter_name = filters[filter_id]
-        print "Filter %d: %s" % (filter_id, filter_name)
+
+    for fid in filters.keys():
+        filter_name = filters[fid]
+        print "Filter %d: %s" % (fid, filter_id)
         print "------------------------------------------"
-        for ticket in list_tickets(j, filter_name):
+        for ticket in list_tickets(j, filter_id):
             print ticket
-            add_observation(conn, filter_id, ticket, t)
+            add_observation(conn, fid, ticket, t)
             register_ticket(conn, ticket)
     conn.commit()
