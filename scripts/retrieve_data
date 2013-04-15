@@ -56,15 +56,30 @@ def register_ticket(conn, ticket):
         curs.close()
 
 if __name__ == "__main__":
-    _config = config.get_config()
-    j = jira.Jira(_config.jira_url, _config.jira_username, _config.jira_password)
+    try:
+	_config = config.get_config()
+    except Exception as err:
+	print "Error in configuration: %s" % err
 
+    try:
+	print _config.jira_url
+	print _config.jira_username
+	print _config.jira_password
+	j = jira.Jira(_config.jira_url, _config.jira_username, _config.jira_password)
+    except Exception as err:
+	print "Error in Jira Library:  %s" % err
+	print type(err)
+	print err.args
+	print err.code
+	print err.lineno
+	print err.offset
+    
     conn = connect(_config.database)
     t = time.time()
     filters = list_filters(conn)
 
     for fid in filters.keys():
-        filter_name = filters[fid]
+        filter_id = filters[fid]
         print "Filter %d: %s" % (fid, filter_id)
         print "------------------------------------------"
         for ticket in list_tickets(j, filter_id):

@@ -25,7 +25,6 @@ def get_config():
     user = getpass.getuser()
     home_dir = os.path.expanduser("~" + user)
     config_path = os.path.join(home_dir, config_file)
-    print config_path
     try:
         config = imp.load_source("config", config_path)
         for key in expected_keys:
