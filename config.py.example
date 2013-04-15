@@ -6,5 +6,11 @@ jira_password="my_jira_password"
 confluence_url="http://confluence.example.com"
 confluence_username="my_jira_username"
 confluence_password="my_jira_password"
+# IRC.
+irc_server = "irc.server.com"
+irc_port = 6667
+irc_password = "my_irc_password"
+irc_nick = "my_irc_nick"
+irc_channel = "#my_irc_channel"
 # Misc. config.
 database="/path/to/database.db"
