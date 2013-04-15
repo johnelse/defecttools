@@ -7,7 +7,7 @@
 ### Setup Linux (Guide: Ubuntu 12.10 Server)                                                                                                                                                                                                                                                                                                                                                                                                                                                  - Install linux distribution of choice
 - Update machine (`[sudo] apt-get update & [sudo] apt-get upgrade`)                                                                                                                     - Install sqlite (`[sudo] apt-get install sqlite3`) 
 - Install git (`[sudo] apt-get install git`)                                                                  - Install pip (`[sudo] apt-get install python-pip`)                                                           - Install jira-python (`[sudo] apt-get install jira-python`)
-- Set python path `export PYTHONPATH=/home/defecttools/`
+- Set python path `export PYTHONPATH=/home/my_username/`
 
 ### Git
 
@@ -17,7 +17,8 @@
 
 ### Sqlite (Guide: .filters account)
 
-- Create a folder in the home directory to store the database
+- Create a folder in the home directory to store the database `mkdir ~/data/defect_dashboard`
+- Inside this folder create a folder backups `mkdir ~/data/defect_dashboard/backups`
 - Run sqlite3 with tickets.db `sqlite3 tickets.db`
 - Create the following structure:
 `CREATE TABLE filters(id integer primary key, name text not null, team_id integer, filter_id integer);                                                                                                        CREATE TABLE tickets(id string primary key, disposition text);                            CREATE TABLE observations(filter_id integer not null, ticket string not null, time real not null);                                                  CREATE TABLE teams (id integer primary key not null, name string);                             CREATE UNIQUE INDEX fid on filters(id);`
@@ -77,6 +78,7 @@ INSERT INTO filters VALUES(51,'DDD - All Dev Clearwater',8,16813);
 INSERT INTO filters VALUES(52,'DDD - All Dev Tallahassee',8,16811);
 INSERT INTO filters VALUES(53,'DDD - All Dev Sarasota',8,16812);`
 
+
 ### Configuration
 
 - Make a new directory `mkdir ~/.defecttools`
@@ -84,7 +86,15 @@ INSERT INTO filters VALUES(53,'DDD - All Dev Sarasota',8,16812);`
 - Update config.py with your credentials
 - Remove original config.py.example
 
+### Logs
+
+- Make a new directory logs `mkdir ~/logs`
+- Create a general log file `touch ddd_out`
+- Create a error log file `touch ddd_err`
+
 ### Cronjob
+
+-
 
 
 
