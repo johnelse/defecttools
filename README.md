@@ -6,8 +6,9 @@
 
 ### Setup Linux (Guide: Ubuntu 12.10 Server)                                                                                                                                                                                                                                                                                                                                                                                                                                                  - Install linux distribution of choice
 - Update machine (`[sudo] apt-get update & [sudo] apt-get upgrade`)                                                                                                                     - Install sqlite (`[sudo] apt-get install sqlite3`) 
-- Install git (`[sudo] apt-get install git`)                                                                  - Install pip (`[sudo] apt-get install python-pip`)                                                           - Install jira-python (`[sudo] apt-get install jira-python`)
+- Install git (`[sudo] apt-get install git`)                                                                  - Install pip (`[sudo] apt-get install python-pip`)                                                           - Install jira-python (`[sudo] pip install jira-python`)
 - Set python path `export PYTHONPATH=/home/my_username/`
+- Fix a bug with latest request (for more info: https://bitbucket.org/bspeakmon/jira-python/issue/9/jira-python-package-does-not-work-with-the). Uninstall latest version and install previous version `[sudo] pip uninstall requests``[sudo] pip install requests==0.14.1`
 
 ### Git
 
@@ -94,7 +95,8 @@ INSERT INTO filters VALUES(53,'DDD - All Dev Sarasota',8,16812);`
 
 ### Cronjob
 
--
+- Install cronjob tool
+- Setup the tool to use the cronjob/cronjob.sh
 
 
 

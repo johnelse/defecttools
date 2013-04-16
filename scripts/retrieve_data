@@ -64,7 +64,7 @@ if __name__ == "__main__":
     filters = list_filters(conn)
 
     for fid in filters.keys():
-        filter_name = filters[fid]
+        filter_id = filters[fid]
         print "Filter %d: %s" % (fid, filter_id)
         print "------------------------------------------"
         for ticket in list_tickets(j, filter_id):
