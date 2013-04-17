@@ -9,7 +9,7 @@ date | tee -a $STDOUT_FILE  $STDERR_FILE
 /home/ring3defects/defecttools/scripts/update_graphs >> $STDOUT_FILE 2>> $STDERR_FILE
 
 DATA_DIR=/home/ring3defects/data/defect_dashboard
-WEB_DIR=/home/ring3defects/public_html
+#WEB_DIR=/home/ring3defects/public_html
 DATE=`date +"%d%m%Y"`
 
 # Snapshot the database.

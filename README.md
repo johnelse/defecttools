@@ -1,14 +1,26 @@
-# Defecttools                                                                                                                                                                                                                      Python scripts to convert jira bugs into confluence metrics.   
+# Defecttools                                                                                                                                                                                                                      
+Python scripts to convert jira bugs into confluence metrics.   
 
 ## Usage
 
-                                                                                                                                                                                                                                                                                                                                                                                                     ## Installation & configuration  
+                                                                                                                                                                  
+                                                                                                                                                                                                                                   
+## Installation & configuration  
 
-### Setup Linux (Guide: Ubuntu 12.10 Server)                                                                                                                                                                                                                                                                                                                                                                                                                                                  - Install linux distribution of choice
-- Update machine (`[sudo] apt-get update & [sudo] apt-get upgrade`)                                                                                                                     - Install sqlite (`[sudo] apt-get install sqlite3`) 
-- Install git (`[sudo] apt-get install git`)                                                                  - Install pip (`[sudo] apt-get install python-pip`)                                                           - Install jira-python (`[sudo] pip install jira-python`)
+### Setup Linux (Guide: Ubuntu 12.10 Server)                                                                                                                                                                                                                    
+                                                                                                                                                                                                                              
+- Install linux distribution of choice
+- Update machine (`[sudo] apt-get update & [sudo] apt-get upgrade`)                                                                                                                     
+- Install sqlite (`[sudo] apt-get install sqlite3`) 
+- Install git (`[sudo] apt-get install git`)                                                                  
+- Install pip (`[sudo] apt-get install python-pip`)                                                           
+- Install jira-python (`[sudo] pip install jira-python`)
+
 - Set python path `export PYTHONPATH=/home/my_username/`
-- Fix a bug with latest request (for more info: https://bitbucket.org/bspeakmon/jira-python/issue/9/jira-python-package-does-not-work-with-the). Uninstall latest version and install previous version `[sudo] pip uninstall requests``[sudo] pip install requests==0.14.1`
+**NOTE MAKE PERMANENT**
+
+- Fix a bug with latest request (for more info: https://bitbucket.org/bspeakmon/jira-python/issue/9/jira-python-package-does-not-work-with-the). Uninstall latest version and install previous version `[sudo] pip uninstall requests`
+`[sudo] pip install requests==0.14.1`
 
 ### Git
 
@@ -22,7 +34,10 @@
 - Inside this folder create a folder backups `mkdir ~/data/defect_dashboard/backups`
 - Run sqlite3 with tickets.db `sqlite3 tickets.db`
 - Create the following structure:
-`CREATE TABLE filters(id integer primary key, name text not null, team_id integer, filter_id integer);                                                                                                        CREATE TABLE tickets(id string primary key, disposition text);                            CREATE TABLE observations(filter_id integer not null, ticket string not null, time real not null);                                                  CREATE TABLE teams (id integer primary key not null, name string);                             CREATE UNIQUE INDEX fid on filters(id);`
+`CREATE TABLE filters(id integer primary key, name text not null, team_id integer, filter_id integer);                                                                                                        
+CREATE TABLE tickets(id string primary key, disposition text);                            
+CREATE TABLE observations(filter_id integer not null, ticket string not null, time real not null);                                                  CREATE TABLE teams (id integer primary key not null, name string);                             
+CREATE UNIQUE INDEX fid on filters(id);`
 - Insert filters
 `INSERT INTO filters VALUES(0,'DDD - Ring 3 Tampa Outgoing',0,16815);
 INSERT INTO filters VALUES(1,'DDD - Ring 3 Triage',0,16764);
