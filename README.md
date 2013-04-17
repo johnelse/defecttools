@@ -47,7 +47,7 @@ CREATE UNIQUE INDEX fid on filters(id);`
 
 - Update the crontab file with the following `0 7 * * * PYTHONPATH=/home/my_user_name; export PYTHONPATH; /home/my_user_name/path/to/cronjob/cronjob.sh`
 
-Now you could sit back and enjoy!
+Sit back and enjoy!
 
 
 
