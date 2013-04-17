@@ -78,20 +78,3 @@ if __name__ == "__main__":
 			register_ticket(conn,issue_object.key)
 	conn.commit()
 	
-
-
-
-
-
-<<<<<<< HEAD
-    for fid in filters.keys():
-        filter_id = filters[fid]
-        print "Filter %d: %s" % (fid, filter_id)
-        print "------------------------------------------"
-        for ticket in list_tickets(j, filter_id):
-            print ticket
-            add_observation(conn, fid, ticket, t)
-            register_ticket(conn, ticket)
-    conn.commit()
-=======
->>>>>>> d23741e595af13d87efc354a340e67dc9734987f
