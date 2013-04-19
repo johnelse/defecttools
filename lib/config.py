@@ -16,7 +16,7 @@ import imp
 import os
 import sys
 
-config_file = ".defecttools/config.py"
+config_file = "/Users/harrie/Work/config/config.py"
 
 expected_keys = [
     "jira_url",
@@ -25,7 +25,9 @@ expected_keys = [
     "confluence_url",
     "confluence_username",
     "confluence_password",
-    "database"
+    "database",
+    "db_port",
+    "db_host"
     ]
 
 def get_config():

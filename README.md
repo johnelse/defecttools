@@ -49,6 +49,9 @@ CREATE UNIQUE INDEX fid on filters(id);`
 
 Sit back and enjoy!
 
+## TODO
+
+- integration with MongoDB  
 
 
 
