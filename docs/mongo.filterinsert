@@ -1,0 +1,5 @@
+db.filters.insert({
+	_id: 0,
+	id: 17173,
+	name: "Clearwater Unresolved BC version 2"
+})

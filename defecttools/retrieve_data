@@ -1,0 +1,78 @@
+#!/usr/bin/env python
+# 
+# Copyright (C) Citrix Systems Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation; version 2.1 only. 
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
+
+
+import os
+import time
+import sys
+import string
+import xmlrpclib
+import logging
+
+from jira.client import JIRA
+from defecttools.lib import config
+from sqlite3 import *
+
+def list_filters(conn):
+    	curs = conn.cursor()
+    	try:
+        	curs.execute("SELECT * FROM filters")
+        	results = {}
+        	for row in curs:
+            		results[row[0]] = str(row[3])
+        	return results
+    	finally:
+        	curs.close()
+
+def add_observation(conn, filter_id, issue_key, time):
+	curs = conn.cursor()
+	try:
+		curs.execute("INSERT INTO observations VALUES ('%d','%s',%.0f)" % (filter_id, issue_key, time))
+	finally:
+		curs.close()
+
+def register_ticket(conn, issue_key):
+	curs = conn.cursor()
+	try:
+		curs.execute("SELECT * FROM tickets WHERE id='%s'" % issue_key)
+		if curs.fetchall() == []:
+			curs.execute("INSERT INTO tickets VALUES ('%s','')" % issue_key)
+	finally:
+		curs.close()
+
+if __name__ == "__main__":
+	_config = config.get_config()
+ 	#Logging
+	logging.basicConfig()
+	logger = logging.getLogger()	
+	#Options
+	j = connect_jira(logger, _config.jira_url,_config.jira_username,_config.jira_password)
+	#Database
+	conn = connect(_config.database)
+ 	#Timestamp
+	t = time.time()
+	#Get all the filters from the database
+	filters = list_filters(conn)
+	#Filter
+	for filter_key in filters.keys():
+		filter_id = filters[filter_key]
+		filter_object = j.filter(filter_id)
+		filter_issues = j.search_issues(filter_object.jql)
+		logger.info("Filter %d: %s" % (filter_key, filter_id))
+		logger.info("-----------------------------------------------------")		
+ 		for issue_object in filter_issues:
+			logger.info(issue_object.key)
+			add_observation(conn,filter_key,issue_object.key, t)
+			register_ticket(conn,issue_object.key)
+	conn.commit()
+	

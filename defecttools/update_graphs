@@ -1,0 +1,286 @@
+#!/usr/bin/env python
+# 
+# Copyright (C) Citrix Systems Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation; version 2.1 only. with the special
+# exception on linking described in file LICENSE.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
+
+# Calculate defect counts and daily defect inflow/outflow; add this to the wiki.
+
+import os
+import time
+import sys
+import string
+import xmlrpclib
+import json
+import urllib
+import re
+import logging
+import itertools
+from defecttools.lib import config
+from jira.client import JIRA
+from sqlite3 import *
+from itertools import repeat
+
+_config = config.get_config()
+
+def connect_jira(log, jira_server, jira_user, jira_password):  
+	try:
+		log.info("Connecting to JIRA: %s" % jira_server)             
+		jira_options = {'server': jira_server}
+		jira = JIRA(options=jira_options, basic_auth=(jira_user,jira_password))
+		return jira
+	except Exceptioni as e:
+		log.error("Failed to connect to JIRA: %s" % e)     
+		return None
+
+def list_teams(conn):
+    curs = conn.cursor()
+    try:
+        curs.execute("select * from teams")
+        results = {}
+        for row in curs:
+            results[row[0]] = str(row[1])
+        return results
+    finally:
+        curs.close()
+
+def list_filters(conn, team_id):
+    curs = conn.cursor()
+    try:
+        curs.execute("select * from filters where team_id=%d order by id asc" % team_id)
+        results = {}
+        for row in curs:
+            results[row[0]] = [str(row[1]), str(row[3])]
+        return results
+    finally:
+        curs.close()
+
+def list_raw_times(conn, team_id):
+    curs = conn.cursor()
+    try:
+        curs.execute("select distinct time from observations, filters where observations.filter_id = filters.id and filters.team_id = '%d'" % team_id)
+        results = []
+        for row in curs:
+            results.append(row[0])
+        return results
+    finally:
+        curs.close()
+
+def list_times(conn, team_id):
+    raw = list_raw_times(conn, team_id)
+    # for each time, choose only one time per day
+    results = []
+    days = []
+    day = 24 * 60 * 60
+    for r in raw:
+        rr = int((r + day - 1)/ day) * day
+        rr = time.gmtime(rr)
+        if rr not in days:
+            days.append(rr)
+            results.append(r)
+    return results
+
+def tickets_of_time(conn, filter_id, time):
+    curs = conn.cursor()
+    try:
+        curs.execute("select ticket from observations where filter_id='%s' and time='%s'" % (filter_id, time))
+        results = set([])
+        for row in curs:
+            results.add(str(row[0]))
+        return results
+    finally:
+        curs.close()
+
+def delta(conn, filter_id, prev_t, t):
+    current = tickets_of_time(conn, filter_id, prev_t)
+    tickets = tickets_of_time(conn, filter_id, t)
+    tickets_nochange = current.intersection(tickets)
+    tickets_in = tickets.symmetric_difference(tickets_nochange)
+    tickets_out = current.symmetric_difference(tickets_nochange)
+    return (tickets_in, tickets_out, tickets_nochange)
+
+def flow(conn, filter_id, all_times):
+    prev_t = 0
+    results = {}
+    for t in sorted(all_times):
+        results[t] = delta(conn, filter_id, prev_t, t)
+        prev_t = t
+    return results
+
+def suppress_transient(flow):
+    results = {}
+    started = False
+    for t in sorted(flow.keys()):
+        if started:
+            results[t] = flow[t]
+        else:
+            if flow[t][0] <> set([]):
+                started = True
+            results[t] = (set([]), set([]), set([]))
+    return results
+
+def format_date(t):
+    tt = time.gmtime(t)
+    return time.strftime("%d.%m.%Y", tt)
+
+def choose_range(conn, all_filters, all_times):
+    biggest = 0
+    smallest = 0
+    for filter_id in all_filters.keys():
+        all = suppress_transient(flow(conn, filter_id, all_times))        
+        for t in all.keys():
+            biggest = max(biggest, len(all[t][0]))
+            smallest = max(smallest, len(all[t][1]))
+    return (0-smallest, biggest)
+
+def inflow(f, conn, filter_id, filter_name, all_times, graph_range):
+    all = suppress_transient(flow(conn, filter_id, all_times))
+    print >>f, "{chart:type=xybar|timeSeries=true|rangeAxisTickUnit=1|rangeAxisLowerBound=%d|rangeAxisUpperBound=%s|dateFormat=dd.MM.yyyy|dataOrientation=vertical|colors=red,blue}" % (graph_range[0], graph_range[1])
+    print >>f, "||Date||Inflow||"
+
+    for t in sorted(all.keys()):
+        print >>f, "|", format_date(t), "|%d|" % len(all[t][0])
+    print >>f, ""
+    print >>f, "||Date||Outflow||"
+    for t in sorted(all.keys()):
+        print >>f, "|", format_date(t), "|%d|" % (0-len(all[t][1]))
+    print >>f, "{chart}",
+
+def choose_overall_range(conn, all_filters, all_times):
+    biggest = 0
+    for filter_id in all_filters.keys():
+        for t in all_times:
+            all = tickets_of_time(conn, filter_id, t)
+            biggest = max(biggest, len(all))
+    return (0, biggest)
+
+def trend(f, conn, filter_id, all_times, graph_range):
+    print >>f, "{chart:type=line|timeSeries=true|rangeAxisLowerBound=%d|rangeAxisUpperBound=%s|dateFormat=dd.MM.yyyy|dataOrientation=vertical}" % (graph_range[0], graph_range[1])
+    print >>f, "||Date||Tickets||"
+    for t in all_times:
+        tickets = tickets_of_time(conn, filter_id, t)
+        print >>f, "|", format_date(t), "|%d|" % len(tickets)
+    print >>f, "{chart}",
+
+def summary(f, conn, all_filters, all_times):
+    last = sorted(all_times)[-1]
+    print >>f, "{chart:type=bar}"
+    print >>f, "||Filter||Number||"
+    for filter_id in all_filters.keys():
+        filter_name = all_filters[filter_id]
+        tickets = tickets_of_time(conn, filter_id, last)
+        print >>f, "|%s|%d|" % (filter_name, len(tickets))
+    print >>f, "{chart}"
+
+def list_merges(f):
+    g = urllib.urlopen("http://github.com/api/v2/json/pulls/xen-org/xen-api/closed")
+    all = json.loads(g.read())
+    g.close()
+
+    print >>f, "h1. Code changes"
+    print >>f, "This shows the successful pull request (merges) into xen-api/master in the last 10 days."
+    print >>f, "||When || Who || What||"
+    now = time.gmtime()
+    for pull in all["pulls"]:
+        if "merged_at" in pull:
+            merged_at = pull["merged_at"]
+            t = time.strptime(merged_at, "%Y-%m-%dT%H:%M:%SZ")
+            delta = time.mktime(now) - time.mktime(t)
+            if delta > 10 * 24 * 60 * 60:
+                continue
+            user = pull["user"]
+            who = "Unknown"
+            if "name" in user:
+                who = user["name"]
+            else:
+                who = user["login"]
+            title = pull["title"]
+            # Attempt to recognise tickets in the title
+            p= re.compile('CA-{0,1}(\d+)', re.IGNORECASE)
+            title = p.sub(r'[CA-\1@scale]', title)
+            print >>f, "| %s | %s | %s |" % (merged_at, who, title)
+
+def get_link_markup(j, filter_name, filter_id):
+    filter_object = j.filter(filter_id)
+    filter_url = 'https://jira.uk.xensource.com/issues/?filter=%s' % filter_id
+
+    return "[%s|%s]" % (filter_name, filter_url)
+
+def update_dashboard(content, team_name):
+    s = xmlrpclib.Server("%s/rpc/xmlrpc" % _config.confluence_url)
+    token = s.confluence1.login(_config.confluence_username, _config.confluence_password)
+    name = "Dave's Defect Dashboard (%s)" % team_name
+    page = s.confluence1.getPage(token, "Ring3", name)
+    page["content"] = content
+    s.confluence1.storePage(token, page)
+
+def one_team(conn, j, team_id, team_name):
+    print "Updating page for team \"%s\"" % team_name
+    print team_id
+    all_times = list_times(conn, team_id)
+
+    all_filters = list_filters(conn, team_id)
+
+    filter_links = []
+    for item in all_filters.items():
+	value = get_link_markup(j, item[1][0], item[1][1]) 
+        filter_links.append(value)
+
+    print "Fetching..." 
+    graph_range = choose_overall_range(conn, all_filters, all_times)
+    print "Writing"
+    filename = "/tmp/content.%d" % team_id
+    f = open(filename, "w")
+    print >>f, "This page shows a daily snapshot of %s defect metrics. " % team_name,
+    print >>f, "This page is automatically generated; do not edit."
+    print >>f, "h1. Status"
+    print >>f, "Total number of tickets (vertical) against time (horizontal). Lower is better."
+    print >>f, "||", "||".join(filter_links), "||"#
+    for filter_id in all_filters.keys():
+        filter_name = all_filters[filter_id][0]
+        print >>f, "|",
+        trend(f, conn, filter_id, all_times, graph_range)
+    print >>f, "|",
+    print >>f
+
+    graph_range = choose_range(conn, all_filters, all_times)
+
+    print >>f, "h1. Daily Inflow/ Outflow"
+    print >>f, "Positive (upwards, red, bad) means inflow; negative (downwards, blue, good) means outflow."
+    print >>f, "Note: the initial transient inflow datapoint has been removed"
+    print >>f, "||", "||".join(filter_links), "||"#
+    for filter_id in all_filters.keys():
+        filter_name = all_filters[filter_id]
+        print >>f, "|",
+        inflow(f, conn, filter_id, filter_name, all_times, graph_range)
+    print >>f, "|"
+    #exit(1)
+
+    #if team_id == 0:
+    #    list_merges(f)
+    f.close()
+
+    f = open(filename, "r")
+    all = f.read()
+    update_dashboard(all, team_name)
+    f.close()
+    print "Done writing"
+
+if __name__ == "__main__":
+    conn = connect(_config.database)
+    logging.basicConfig() 
+    logger = logging.getLogger() 
+    j = connect_jira(logger, _config.jira_url,_config.jira_username,_config.jira_password) 
+    
+    all_teams = list_teams(conn)
+
+    for team_id in all_teams.keys():
+        one_team(conn, j, team_id, all_teams[team_id])
