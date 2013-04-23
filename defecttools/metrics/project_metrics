@@ -1,0 +1,241 @@
+#!/usr/bin/env python
+#
+# Copyright (C) Citrix Systems Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation; version 2.1 only.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
+
+import os
+import time
+import sys
+import string
+import xmlrpclib
+import logging
+import pymongo
+
+from jira.client import JIRA
+from defecttools.lib import config
+
+def connect_jira(log, jira_server, jira_user, jira_password):
+    '''
+    Connect to JIRA. Return None on error
+    '''
+    try:
+        log.info("Connecting to JIRA: %s" % jira_server)
+        jira_options = {'server': jira_server}
+        jira = JIRA(options=jira_options, basic_auth=(jira_user,jira_password))
+        return jira
+    except Exception,e:
+        log.error("Failed to connect to JIRA: %s" % e)
+        return None
+
+def connect_database(log, database_host, database_port):
+	'''
+	Connect to MongoDB. Return None on error
+	'''
+	try:
+		log.info("Connecting to MongoDB: %s:%s" % (database_host, str(database_port)))
+		db = pymongo.MongoClient(database_host, database_port)
+		table = db.jirametrics
+		return table
+	except Exception,e:
+		log.error("Failed to connect to MongoDB: %s" % e)
+		return None
+
+def get_filters(log, db):
+	'''
+	Get all the filters from the database. Return None on error
+	'''
+	try:
+		log.info("Getting all filters from collection")
+		filters = db.filters.find()
+		return filters
+	except Exception,e:
+		log.error("Failed to get filters from collection: %s" % e)
+		return None
+
+def insert_observation(log, db, filter, tickets, timestamp):
+	'''
+	Insert all observations of this check in the database
+	'''
+	try:
+		log.info("Inserting all obeservations into the database")
+		observations 	= db.observations.find_one(timestamp)
+		if observations is None:
+			db.observations.insert({"_id": timestamp})
+
+		tickets 		= ", ".join(tickets)
+		post			= { "tickets": tickets }
+		db.observations.update({'_id' : timestamp}, {'$set' : { filter : post }})
+	except Exception,e:
+		log.error("Failed to insert into collection: %s" % e)
+		return None
+
+def generate_page(log, db, jira, page):
+	'''
+	Insert page into confluence
+	'''
+	log.info("Generating page: %s: " % page)
+	data				= db.observations.find().sort(u'_id',pymongo.DESCENDING).limit(2)
+	switch				= True
+	tickets_new 		= []
+	tickets_old 		= []
+	filter_names_id		= []
+	for record in data:
+		if switch:
+			filters 			= get_filters(log, db)
+			for item in filters:
+				tickets_new.append([record[str(int(item['id']))]['tickets']])
+				filter_names_id.append(item['id'])
+			switch 		= False
+		else:
+			filters 			= get_filters(log, db)
+			for item in filters:
+				tickets_old.append([record[str(int(item['id']))]['tickets']])
+
+	inflow 				= compare_list_diff(log, tickets_new, tickets_old)
+	outflow 			= compare_list_diff(log, tickets_old, tickets_new)
+	non_movers 			= compare_list_equals(log, tickets_new, tickets_old)
+	filter_names 		= get_filter_names(log, db, filter_names_id)
+	template			= template_main(log, inflow, non_movers, outflow, filter_names, page)
+	return template
+
+def compare_list_diff(log, tickets_a, tickets_b):
+	'''
+	Compare list_a against list_b to find the items that are different between them
+	'''
+	log.info("Calculating the differences between 2 lists.")
+	return_list 		= []
+	for item_a, item_b in zip(tickets_a, tickets_b):
+		set_a 			= set(item_a)
+		set_b 			= set(item_b)
+		set_result		= list(set_a - set_b)
+		return_list.append(set_result)
+	return return_list
+
+def compare_list_equals(log, tickets_a, tickets_b):
+	'''
+	Compare list_a against list_b to find the items that are the same between them
+	'''
+	log.info("Calculating the equals between 2 lists.")
+	return_list 		= []
+	for item_a, item_b in zip(tickets_a, tickets_b):
+		set_a 			= set(item_a)
+		set_b 			= set(item_b)
+		set_result		= list(set_a.intersection(set_b))
+		return_list.append(set_result)
+	return return_list
+
+def template_main(log, inflow, non_movers, outflow, filter_names, page):
+	'''
+	Define template
+	'''
+	try:
+		log.info("Writing confluence page to file")
+		filename 	= "/tmp/content.%s" % page
+		f 			= open(filename, "wb")
+		print >>f, "This page is automatically generated; do not edit."
+		for item_inflow, item_non_movers, non_outflow, item_name in zip(inflow, non_movers, outflow, filter_names):
+			print >>f, template_filter(log, item_inflow, item_non_movers, non_outflow, item_name)
+		f.close()
+		f 			= open(filename, "r")
+		read 		= f.read()
+		f.close()
+		return read
+	except Exception,e:
+		log.error("Failed to create page: %s" % e)
+		return None
+
+def template_filter(log, inflow, non_movers, outflow, name):
+	'''
+	Template markup for filter.
+	'''
+	log.info("Writing filter")
+	return_string = "h1. %s \n" % name
+	return_string += "h3. {color:#555555} Inflow{color} \n"
+	return_string += template_table(log, inflow)
+	return_string += "h3. {color:#555555} Non-movers{color} \n"
+	return_string += template_table(log, non_movers)
+	return_string += "h3. {color:#555555} Outflow{color} \n"
+	return_string += template_table(log, outflow)
+	return_string += "----"
+	return return_string
+
+def template_table(log, data):
+	'''
+	Template markup for confluence table.
+	'''
+
+	if data:
+		return_string	= "{jira:key in (%s)\|server=jira\|columns=type,key,summary,priority,status,updated,assignee\|renderMode=static} \n" % data[0]
+	else:
+		return_string	= "{color:#888888} No results found.{color} \n"
+	return return_string
+
+def get_filter_names(log, db, list_filter_ids):
+	'''
+	Return filter name list given a filter id list
+	'''
+	log.info("Fetching list names")
+	return_list 	= []
+	try:
+		for item in list_filter_ids:
+			value	= db.filters.find_one({"id" : item})
+			return_list.append(value['name'])
+		return return_list
+	except Exception,e:
+		log.error("Failed to get filter names: %s" % e)
+		return None
+
+def insert_page(content, name):
+    s = xmlrpclib.Server("%s/rpc/xmlrpc" % _config.confluence_url)
+    token = s.confluence1.login(_config.confluence_username, _config.confluence_password)
+    page = s.confluence1.getPage(token, "Ring3", name)
+    page["content"] = content
+    s.confluence1.storePage(token, page)
+
+# Execute main python code
+if __name__ == "__main__":
+	#Get configuration from the file specified in lib/config.py
+	_config 	= config.get_config()
+	#Logging
+	logging.basicConfig()
+	log 		= logging.getLogger()
+	#Jira
+	_jira 		= connect_jira(log, _config.jira_url,_config.jira_username,_config.jira_password)
+	#Database
+	_db 		= connect_database(log,_config.db_host,_config.db_port)
+	#Check if it has any use to continue
+	if not (_jira is None) or not (_db is None):
+		#Timestamp
+		timestamp 	= time.time()
+		#Get Filters
+		filters 	= get_filters(log, _db)
+
+		#1. 	Loop through filters & Insert all the data in the database
+		for item in filters:
+			filter_id 		= str(int(item['id']))
+			filter_object 	= _jira.filter(filter_id)
+			filter_issues 	= _jira.search_issues(filter_object.jql)
+			log.info("Filter %s: %s" % (item['name'], filter_id))
+			log.info("-----------------------------------------------------")
+ 			tickets 		= []
+ 			for issue_object in filter_issues:
+				log.info("Inserting: %s" % issue_object.key)
+				tickets.append(issue_object.key)
+			insert_observation(log, _db, filter_id, tickets, timestamp)
+
+		#2. 	Insert the data in the page
+		# TODO dynamically add multiple page options
+		page = generate_page(log, _db, _jira, "Clearwater Metrics")
+		#Insert page into confluence
+		insert_page(page, "Clearwater Metrics")
+
+	else:
+		log.error("Failed to execute, connection to Jira or Mongo Failed.")
