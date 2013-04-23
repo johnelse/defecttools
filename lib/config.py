@@ -1,4 +1,4 @@
-# 
+#
 # Copyright (C) Citrix Systems Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@ import imp
 import os
 import sys
 
-config_file = "/Users/harrie/Work/config/config.py"
+config_file = ".defecttools/config.py"
 
 expected_keys = [
     "jira_url",
