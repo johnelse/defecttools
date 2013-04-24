@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-# 
+#
 # Copyright (C) Citrix Systems Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
-# by the Free Software Foundation; version 2.1 only. 
+# by the Free Software Foundation; version 2.1 only.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -22,6 +22,16 @@ import logging
 from jira.client import JIRA
 from defecttools.lib import config
 from sqlite3 import *
+
+def connect_jira(log, jira_server, jira_user, jira_password):
+	try:
+		log.info("Connecting to JIRA: %s" % jira_server)
+		jira_options = {'server': jira_server}
+		jira = JIRA(options=jira_options, basic_auth=(jira_user,jira_password))
+		return jira
+	except Exception as e:
+		log.error("Failed to connect to JIRA: %s" % e)
+		return None
 
 def list_filters(conn):
     	curs = conn.cursor()
@@ -54,7 +64,7 @@ if __name__ == "__main__":
 	_config = config.get_config()
  	#Logging
 	logging.basicConfig()
-	logger = logging.getLogger()	
+	logger = logging.getLogger()
 	#Options
 	j = connect_jira(logger, _config.jira_url,_config.jira_username,_config.jira_password)
 	#Database
@@ -69,10 +79,9 @@ if __name__ == "__main__":
 		filter_object = j.filter(filter_id)
 		filter_issues = j.search_issues(filter_object.jql)
 		logger.info("Filter %d: %s" % (filter_key, filter_id))
-		logger.info("-----------------------------------------------------")		
+		logger.info("-----------------------------------------------------")
  		for issue_object in filter_issues:
 			logger.info(issue_object.key)
 			add_observation(conn,filter_key,issue_object.key, t)
 			register_ticket(conn,issue_object.key)
 	conn.commit()
-	

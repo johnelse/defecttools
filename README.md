@@ -32,6 +32,10 @@ CREATE TABLE teams (id integer primary key not null, name string);
 CREATE UNIQUE INDEX fid on filters(id);`
 - [Optional] Export the old data into the new database (see data/source on server for the old import files).
 
+### MongoDB
+
+
+
 ### Configuration
 
 - Make a new directory `mkdir ~/.defecttools` (If you like to use another directory make sure you update lib/config config_file path to your path)

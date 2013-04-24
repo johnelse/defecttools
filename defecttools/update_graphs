@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 
+#
 # Copyright (C) Citrix Systems Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -31,14 +31,14 @@ from itertools import repeat
 
 _config = config.get_config()
 
-def connect_jira(log, jira_server, jira_user, jira_password):  
+def connect_jira(log, jira_server, jira_user, jira_password):
 	try:
-		log.info("Connecting to JIRA: %s" % jira_server)             
+		log.info("Connecting to JIRA: %s" % jira_server)
 		jira_options = {'server': jira_server}
 		jira = JIRA(options=jira_options, basic_auth=(jira_user,jira_password))
 		return jira
 	except Exception as e:
-		log.error("Failed to connect to JIRA: %s" % e)     
+		log.error("Failed to connect to JIRA: %s" % e)
 		return None
 
 def list_teams(conn):
@@ -135,7 +135,7 @@ def choose_range(conn, all_filters, all_times):
     biggest = 0
     smallest = 0
     for filter_id in all_filters.keys():
-        all = suppress_transient(flow(conn, filter_id, all_times))        
+        all = suppress_transient(flow(conn, filter_id, all_times))
         for t in all.keys():
             biggest = max(biggest, len(all[t][0]))
             smallest = max(smallest, len(all[t][1]))
@@ -231,10 +231,10 @@ def one_team(conn, j, team_id, team_name):
 
     filter_links = []
     for item in all_filters.items():
-	value = get_link_markup(j, item[1][0], item[1][1]) 
+	value = get_link_markup(j, item[1][0], item[1][1])
         filter_links.append(value)
 
-    print "Fetching..." 
+    print "Fetching..."
     graph_range = choose_overall_range(conn, all_filters, all_times)
     print "Writing"
     filename = "/tmp/content.%d" % team_id
@@ -276,10 +276,9 @@ def one_team(conn, j, team_id, team_name):
 
 if __name__ == "__main__":
     conn = connect(_config.database)
-    logging.basicConfig() 
-    logger = logging.getLogger() 
-    j = connect_jira(logger, _config.jira_url,_config.jira_username,_config.jira_password) 
-    
+    logging.basicConfig()
+    logger = logging.getLogger()
+    j = connect_jira(logger, _config.jira_url,_config.jira_username,_config.jira_password)
     all_teams = list_teams(conn)
 
     for team_id in all_teams.keys():
