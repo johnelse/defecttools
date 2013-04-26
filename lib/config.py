@@ -1,8 +1,15 @@
-# 
-# Copyright (c) 2006-2012 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and
-# conditions as licensed by XenSource, Inc. All other rights reserved.
 #
+# Copyright (C) Citrix Systems Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation; version 2.1 only. with the special
+# exception on linking described in file LICENSE.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
 
 import getpass
 import imp
@@ -18,7 +25,9 @@ expected_keys = [
     "confluence_url",
     "confluence_username",
     "confluence_password",
-    "database"
+    "database",
+    "db_port",
+    "db_host"
     ]
 
 def get_config():

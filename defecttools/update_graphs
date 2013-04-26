@@ -1,11 +1,16 @@
 #!/usr/bin/env python
-# 
-# Copyright (c) 2006-2012 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and
-# conditions as licensed by XenSource, Inc. All other rights reserved.
 #
-# Rok Strnisa <rok.strnisa@citrix.com>, September 2010
+# Copyright (C) Citrix Systems Inc.
 #
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation; version 2.1 only. with the special
+# exception on linking described in file LICENSE.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
 
 # Calculate defect counts and daily defect inflow/outflow; add this to the wiki.
 
@@ -17,13 +22,24 @@ import xmlrpclib
 import json
 import urllib
 import re
-
+import logging
+import itertools
 from defecttools.lib import config
-from defecttools.jiralib import jira
-
+from jira.client import JIRA
 from sqlite3 import *
+from itertools import repeat
 
 _config = config.get_config()
+
+def connect_jira(log, jira_server, jira_user, jira_password):
+	try:
+		log.info("Connecting to JIRA: %s" % jira_server)
+		jira_options = {'server': jira_server}
+		jira = JIRA(options=jira_options, basic_auth=(jira_user,jira_password))
+		return jira
+	except Exception as e:
+		log.error("Failed to connect to JIRA: %s" % e)
+		return None
 
 def list_teams(conn):
     curs = conn.cursor()
@@ -42,7 +58,7 @@ def list_filters(conn, team_id):
         curs.execute("select * from filters where team_id=%d order by id asc" % team_id)
         results = {}
         for row in curs:
-            results[row[0]] = str(row[1])
+            results[row[0]] = [str(row[1]), str(row[3])]
         return results
     finally:
         curs.close()
@@ -119,7 +135,7 @@ def choose_range(conn, all_filters, all_times):
     biggest = 0
     smallest = 0
     for filter_id in all_filters.keys():
-        all = suppress_transient(flow(conn, filter_id, all_times))        
+        all = suppress_transient(flow(conn, filter_id, all_times))
         for t in all.keys():
             biggest = max(biggest, len(all[t][0]))
             smallest = max(smallest, len(all[t][1]))
@@ -188,12 +204,14 @@ def list_merges(f):
                 who = user["login"]
             title = pull["title"]
             # Attempt to recognise tickets in the title
-            p = re.compile('CA-{0,1}(\d+)', re.IGNORECASE)
+            p= re.compile('CA-{0,1}(\d+)', re.IGNORECASE)
             title = p.sub(r'[CA-\1@scale]', title)
             print >>f, "| %s | %s | %s |" % (merged_at, who, title)
 
-def get_link_markup(_jira, filter_name):
-    filter_url = _jira.getFilterUrl(filter_name)
+def get_link_markup(j, filter_name, filter_id):
+    filter_object = j.filter(filter_id)
+    filter_url = 'https://jira.uk.xensource.com/issues/?filter=%s' % filter_id
+
     return "[%s|%s]" % (filter_name, filter_url)
 
 def update_dashboard(content, team_name):
@@ -204,15 +222,21 @@ def update_dashboard(content, team_name):
     page["content"] = content
     s.confluence1.storePage(token, page)
 
-def one_team(conn, _jira, team_id, team_name):
+def one_team(conn, j, team_id, team_name):
     print "Updating page for team \"%s\"" % team_name
+    print team_id
     all_times = list_times(conn, team_id)
 
     all_filters = list_filters(conn, team_id)
-    filter_links = map(lambda filter_name: get_link_markup(_jira, filter_name), all_filters.values())
 
+    filter_links = []
+    for item in all_filters.items():
+	value = get_link_markup(j, item[1][0], item[1][1])
+        filter_links.append(value)
+
+    print "Fetching..."
     graph_range = choose_overall_range(conn, all_filters, all_times)
-
+    print "Writing"
     filename = "/tmp/content.%d" % team_id
     f = open(filename, "w")
     print >>f, "This page shows a daily snapshot of %s defect metrics. " % team_name,
@@ -221,7 +245,7 @@ def one_team(conn, _jira, team_id, team_name):
     print >>f, "Total number of tickets (vertical) against time (horizontal). Lower is better."
     print >>f, "||", "||".join(filter_links), "||"#
     for filter_id in all_filters.keys():
-        filter_name = all_filters[filter_id]
+        filter_name = all_filters[filter_id][0]
         print >>f, "|",
         trend(f, conn, filter_id, all_times, graph_range)
     print >>f, "|",
@@ -248,12 +272,14 @@ def one_team(conn, _jira, team_id, team_name):
     all = f.read()
     update_dashboard(all, team_name)
     f.close()
+    print "Done writing"
 
 if __name__ == "__main__":
     conn = connect(_config.database)
-    _jira = jira.Jira(_config.jira_url, _config.jira_username, _config.jira_password)
-
+    logging.basicConfig()
+    logger = logging.getLogger()
+    j = connect_jira(logger, _config.jira_url,_config.jira_username,_config.jira_password)
     all_teams = list_teams(conn)
 
     for team_id in all_teams.keys():
-        one_team(conn, _jira, team_id, all_teams[team_id])
+        one_team(conn, j, team_id, all_teams[team_id])
