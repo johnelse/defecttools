@@ -14,12 +14,13 @@ Python scripts to convert jira bugs into confluence metrics. Calculate defect co
 - Install pymongo (`[sudo] pip install pymongo`)
 - Fix a bug with latest request (for more info: https://bitbucket.org/bspeakmon/jira-python/issue/9/jira-python-package-does-not-work-with-the). Uninstall latest version and install previous version `[sudo] pip uninstall requests`
 `[sudo] pip install requests==0.14.1`
+- Install mongodb (`[sudo] pip install pymongo`)
 
 ### Git
 
 - Git clone this project onto your server `git clone git@github.com:johnelse/defecttools.git`
 
-### Sqlite (Guide: .filters account)
+### Sqlite (Guide: .filters account) - Used for Dave's Defect Dashboard (DDD)
 
 - Create a folder in the home directory to store the database `mkdir ~/data/defect_dashboard`
 - Inside this folder create a folder backups `mkdir ~/data/defect_dashboard/backups`
@@ -32,9 +33,14 @@ CREATE TABLE teams (id integer primary key not null, name string);
 CREATE UNIQUE INDEX fid on filters(id);`
 - [Optional] Export the old data into the new database (see data/source on server for the old import files).
 
-### MongoDB
+### MongoDB (Guide: .filters account) - Used for Malcolm's Dashboard (MD)
 
-
+- Make sure mongodb is running (`[sudo] mongod`)
+- Enter the mongodb console (`mongo`)
+- Switch to jirametrics database (`use jirametrics`)
+- Insert filters into the filters collection using the following json representation:
+{ "_id" : <_id>, "id" : <filter id in jira>, "name" : <Custom filter name>, "type" : <0 for normal filter use, 1 to get parent tickets(for merge)> }
+using the following db.filters.insert({ <json representation> })
 
 ### Configuration
 
@@ -57,7 +63,8 @@ Sit back and enjoy!
 
 ## TODO
 
-- integration with MongoDB
+- integration of DDD with MongoDB to increase the speed.
+- Add historical data to MD to allow graphical representation
 
 
 
