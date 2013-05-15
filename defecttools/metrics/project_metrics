@@ -211,7 +211,7 @@ def template_table(log, data, filter_type, jira):
 			data = get_parent_tickets(log, jira, data)
 
 		string 			= ",".join(data)
-		return_string	= "{jira:key in (%s)\|server=jira\|columns=type,key,summary,priority,status,updated,assignee\|renderMode=static} \n" % string
+		return_string	= "{jira:key in (%s)\|server=jira\|columns=type,key,summary,priority,status,component,updated,assignee\|renderMode=static} \n" % string
 	else:
 		return_string	= "{color:#888888} No results found.{color} \n"
 	return return_string
