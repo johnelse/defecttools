@@ -1,0 +1,479 @@
+#!/usr/bin/env python
+#
+# Copyright (C) Citrix Systems Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation; version 2.1 only.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
+
+import os
+import time
+import sys
+import string
+import xmlrpclib
+import logging
+import pymongo
+
+from jira.client import JIRA
+from workdays import networkdays
+from defecttools.lib import config
+from datetime import date, datetime, timedelta
+
+# Jira functions
+
+def connect_jira(log, jira_server, jira_user, jira_password):
+    '''
+    Connect to JIRA. Return None on error.
+    '''
+    try:
+        log.info("Connecting to JIRA: %s" % jira_server)
+        jira_options = {'server': jira_server}
+        jira = JIRA(options=jira_options, basic_auth=(jira_user,jira_password))
+        return jira
+    except Exception,e:
+        log.error("Failed to connect to JIRA: %s" % e)
+        return None
+
+def get_full_report(log, resource, tickets):
+	'''
+	Retrieve and return all relevant information based on Jira keys.
+	'''
+	try:
+		ret = []
+		tickets_list = tickets[0].split(', ')
+		for item in tickets_list:
+			single_ret = []
+			obj = resource.issue(item)
+			single_ret.append(obj.key)									# Key
+			string = ''
+			for component in obj.fields.components:
+				sub_obj = resource.component(component.id)
+				string += sub_obj.name
+			single_ret.append(string)									# Components
+			if obj.fields.customfield_10080 is not None:
+				single_ret.append(obj.fields.customfield_10080.value) 	# Teams
+			else:
+				single_ret.append(obj.fields.customfield_10080)			# Failure
+			single_ret.append(obj.fields.summary)						# Summary
+			priority_obj = resource.priority(obj.fields.priority.id)
+			single_ret.append(priority_obj.iconUrl) 					# Priority Icon
+			single_ret.append(priority_obj.name)						# Priority Name
+			single_ret.append(obj.fields.assignee.name)					# Assignee
+			single_ret.append(obj.fields.reporter.name)					# Reporter
+			single_ret.append(obj.fields.customfield_10450)				# Eng. Owner
+			single_ret.append(obj.fields.created)						# Created
+			single_ret.append(obj.fields.updated)						# Updated
+			days_active = get_days_active(log, obj.fields.created)		
+			single_ret.append(days_active)								# Number of days
+			ret.append(single_ret)
+		return ret
+	except Exception,e:
+		log.error("Failed to get report information from JIRA: %s" % e)
+		return None
+
+def get_days_active(log, created):
+	'''
+	Get work days active since date.
+	'''
+	try:
+		bank_holidays = [date(year=2013,month=8,day=26),
+						date(year=2013,month=12,day=25),
+						date(year=2013,month=12,day=26),
+						date(year=2014,month=1,day=1),
+						date(year=2014,month=4,day=18),
+						date(year=2014,month=4,day=21),
+						date(year=2014,month=5,day=5),
+						date(year=2014,month=5,day=26),
+						date(year=2014,month=8,day=25),
+						date(year=2014,month=12,day=25),
+						date(year=2014,month=12,day=26),
+						date(year=2015,month=1,day=1),
+						date(year=2015,month=4,day=3),
+						date(year=2015,month=4,day=6),
+						date(year=2015,month=5,day=4),
+						date(year=2015,month=5,day=25),
+						date(year=2015,month=8,day=31),
+						date(year=2015,month=12,day=25),
+						date(year=2015,month=12,day=28)]
+		today 	= date.today();
+		origin 	= created.split('T')
+		split 	= origin[0].split('-')
+		year	= int(split[0])
+		month 	= int(split[1])
+		day 	= int(split[2])
+		created = date(year=year,month=month,day=day)
+		ret = networkdays(created,today,bank_holidays)
+		return ret
+	except Exception, e:
+		log.error("Failed to get days active: %s" % e)
+		return None
+
+# Confluence functions
+
+def insert_page(content, name):
+	'''
+	Insert generated page into confluence
+	'''
+	log.info("Insert generated page into confluence")
+	try:
+		s = xmlrpclib.Server("%s/rpc/xmlrpc" % _config.confluence_url)
+		token = s.confluence1.login(_config.confluence_username, _config.confluence_password)
+		page = s.confluence1.getPage(token, "Ring3", name)
+		page["content"] = content
+		s.confluence1.storePage(token, page)
+	except Exception,e:
+		log.error("Failed to insert page into confluence: %s" % e)
+
+# Database functions
+
+def connect_database(log, database_host, database_port):
+	'''
+	Connect to MongoDB. Return None on error
+	'''
+	try:
+		log.info("Connecting to MongoDB: %s:%s" % (database_host, str(database_port)))
+		db = pymongo.MongoClient(database_host, database_port)
+		table = db.trackermetrics
+		return table
+	except Exception,e:
+		log.error("Failed to connect to MongoDB: %s" % e)
+		return None
+
+def insert_observation(log, db, filter, tickets, timestamp):
+	'''
+	Insert all observations of this check in the database
+	'''
+	try:
+		log.info("Inserting all obeservations into the database")
+		observations 	= db.observations.find_one(timestamp)
+		if observations is None:
+			db.observations.insert({"_id": timestamp})
+
+		tickets 		= ", ".join(tickets)
+		post			= { "tickets": tickets }
+		db.observations.update({'_id' : timestamp}, {'$set' : { filter : post }})
+	except Exception,e:
+		log.error("Failed to insert into collection: %s" % e)
+		return None
+
+def get_filters(log, db):
+	'''
+	Get all the filters from the database. Return None on error
+	'''
+	try:
+		log.info("Getting all filters from collection")
+		filters = db.filters.find()
+		return filters
+	except Exception,e:
+		log.error("Failed to get filters from collection: %s" % e)
+		return None
+
+def get_filter_names(log, db, list_filter_ids):
+	'''
+	Return filter name list given a filter id list
+	'''
+	return_list 	= []
+	try:
+		log.info("Fetching list names")
+		for item in list_filter_ids:
+			value	= db.filters.find_one({"id" : item})
+			return_list.append(value['name'])
+		return return_list
+	except Exception,e:
+		log.error("Failed to get filter names: %s" % e)
+		return None
+
+# General functions
+
+def get_team_array(log, team_array):
+	'''
+	Get tickets per team return array.
+	'''
+	log.info("Getting number of tickets per team")
+	try:
+		teams = {}		
+		for item in team_array:
+			team = item[2]
+			if team is not None:				
+				if teams.get(team) is not None:
+					teams[team] += 1;					
+				else:
+					teams[team] = 1;				
+		return teams
+	except Exception,e:
+		log.error("Failed to make team array: %s" % e)
+		return None
+
+def get_open_array(log, days_array):
+	'''
+	Get number of open days and return array.
+	'''
+	log.info("Getting number of open days per ticket")
+	# 12
+	try:
+		one_c 		= 0
+		one_t 		= 0
+		two_c 		= 0
+		two_t 		= 0
+		three_c 	= 0
+		three_t 	= 0
+		for item in days_array:
+			day = int(item[11])
+			if day is not None:					
+				if day < 30:
+					one_c += 1
+					one_t += day
+				elif day > 30 and day < 48:
+					two_c += 1
+					two_t += day
+				else:
+					three_c += 1
+					three_t += day
+		
+		total = ((one_c + two_c) + three_c)
+		days = []
+		days.append(one_c)
+		days.append((float(one_c) / float(total)) * 100)
+		days.append(one_t / one_c)
+		days.append(two_c)
+		days.append((float(two_c) / float(total))*100)
+		days.append(two_t / two_c)
+		days.append(three_c)
+		days.append((float(three_c) / float(total))*100)
+		days.append(three_t / three_c)
+		days.append(total)
+		return days
+	except Exception,e:
+		log.error("Failed to make open array: %s" % e)
+		return None
+
+# Templating functions
+
+def template_main(log, full_report, team_array, open_array, resource, page):
+	'''
+	Define main template
+	'''
+	try:
+		log.info("Writing confluence page to file")		
+
+		report_date = date.today().isoformat()
+		WeekNum 	= date.today().isocalendar()[1]
+
+		filename 	= "/tmp/content.%s" % page
+		f 			= open(filename, "wb")
+
+		print >>f, stylesheet()		
+		print >>f, "\n {color:#c0c0c0}This page is automatically generated; do not edit.{color} \n\n"
+		print >>f, "h1. SCTX General Report - "
+		print >>f, str(report_date)
+		print >>f, " - "
+		print >>f, str(WeekNum)
+		print >>f, "\n"
+		print >>f, "{html}<table><tbody><tr><th>{html}"
+		print >>f, "h3. Tickets by Team"
+		print >>f, "{html}</th><th>{html}"
+		print >>f, "h3. Open days"
+		print >>f, "{html}</th></tr><tr><td>{html}"
+		#print >>f, template_teams(log, team_array)
+		print >>f, "{html}</td><td>{html}"
+		#print >>f, template_days(log, open_array)
+		print >>f, "{html}</td></tr></tbody></table> \n \n {html}"
+		print >>f, "h3. Tickets"
+		#print >>f, template_table(log, full_report)
+		print >>f, "\n\n h3. Distribution \n\n"
+		f.close()
+		f 			= open(filename, "r")
+		read 		= f.read()
+		f.close()
+		return read
+	except Exception,e:
+		log.error("Failed to create page: %s" % e)
+		return None
+
+
+def template_table(log, data):
+	'''
+	Template markup for confluence table.
+	'''
+	return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=''}\n"
+	return_string += "|| *Key* \\ || *Components* \\ || *Team* \\ || *Summary* \\ || *Priority* \\ || *Summary* \\ || *Assignee* \\ || *Eng. Owner* \\ || *Created* \\ || *Updated* \\ || *Days Open* \\ ||\n"
+	for item in data:
+		return_string += "|"
+		return_string += item[0]
+		return_string += "|"
+		return_string += item[1]
+		return_string += "|"
+		return_string += item[2]
+		return_string += "|"
+		return_string += item[3]
+		return_string += "|"
+		return_string += item[4]
+		return_string += "|"
+		return_string += item[5]
+		return_string += "|"
+		return_string += item[6]
+		return_string += "|"
+		return_string += item[7]
+		return_string += "|"
+		return_string += item[8]
+		return_string += "|"
+		return_string += item[9]
+		return_string += "|"
+		return_string += item[10]
+		return_string += "|\n"
+	return_string += "{table-plus}\n"
+	return return_string
+
+def template_teams(log, data):
+	'''
+	Template markup for teams.
+	'''
+	total = 0
+	return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=innerTable}\n"
+	return_string += "|| *Team* \\ || *Tickets* \\ ||\n"
+	for k, v in data.iteritems():
+		return_string += "| "
+		return_string += k
+		return_string += " \\ |"
+		return_string += v
+		return_string += " |\n"
+		total += int(v)
+	return_string += "| *Total* \\ |"
+	return_string += total
+	return_string += "| \\ | |\n"
+	return_string += "{table-plus}\n"
+	return return_string
+
+
+def template_days(log, data):
+	return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=innerTable}\n"
+	return_string += "|| *Open days* \\ || *Tickets* \\ || *Percentage* \\ || *Average* \\ ||\n"
+	return_string += "| 0 - 30 \\ |"
+	return_string += data[0]
+	return_string += " | "
+	return_string += data[1]
+	return_string += " | {color:#339966}"
+	return_string += data[2]
+	return_string += " {color}| \n"
+	return_string += "| 31 - 48 \\ |"
+	return_string += data[3]
+	return_string += " | "
+	return_string += data[4]
+	return_string += " | {color:#993300}"
+	return_string += data[5]
+	return_string += " {color}| \n"
+	return_string += "| 48 - &infi; \\ |"
+	return_string += data[7]
+	return_string += " | "
+	return_string += data[8]
+	return_string += " | {color:#ff0000}"
+	return_string += data[9]
+	return_string += " {color}| \n"
+	return_string += "| *Total* \\ |"
+	return_string += data[10]
+	return_string += " \\ | 100% \\ | | \\ |\n"
+	return_string += "{table-plus}\n"
+	return return_string
+
+
+def stylesheet():
+	string = "{style}"
+	string += ".wiki-content h3  {"
+	string += "margin: 0;!important;"
+	string += "color: #666666;!important;"
+	string += "}"
+	string += ".wiki-content th.confluenceTh {"
+	string += "padding: 0;!important;"
+	string += "}"
+	string += ".wiki-content table {"
+	string += "width: 100%;"
+	string += "}"
+	string += ".wiki-content th.confluenceTh {"
+	string += "width: 50%; !important;"
+	string += "}"
+	string += ".wiki-content table.innerTable {"
+	string += "width: auto; !important;"
+	string += "}"
+	string += ".wiki-content td.confluenceTd, .wiki-content th.confluenceTh"
+	string += "{"
+	string += " padding-left: 0; !important;"
+	string += "text-align: left;"
+	string += "}"
+	string += "		.wiki-content td {"
+	string += "	 vertical-align: top; !important;"
+	string += "}"
+	string += "{style}"
+	return string
+
+# Main page generation loop
+
+def generate_page(log, db, resource, page):
+	'''
+	Insert page into confluence
+	'''
+	log.info("Generating page: %s: " % page)
+	data				= db.observations.find().sort(u'_id',pymongo.DESCENDING).limit(1)
+	filter_names_id		= []
+	filter_types 		= []
+	filters 			= get_filters(log, db)	
+	for record in data:
+		for item in filters:
+			tickets = [record[str(int(item['id']))]['tickets']]
+	
+	full_report 		= get_full_report(log, resource, tickets)
+	team_array 			= get_team_array(log, full_report)
+	open_array 			= get_open_array(log, full_report)
+	print open_array
+	template			= template_main(log, full_report, team_array, open_array, resource, page)
+	return template
+
+# Main loop - Don't forget to uncomment the insert
+
+if __name__ == "__main__":
+	#Get configuration from the file specified in lib/config.py
+	_config 	= config.get_config()
+	#Logging
+	logging.basicConfig()
+	log 		= logging.getLogger()
+	#Jira
+	_tracker 	= connect_jira(log, _config.tracker_url,_config.jira_username,_config.jira_password)
+	#Database
+	_db 		= connect_database(log,_config.db_host,_config.db_port)
+	#Check if it has any use to continue
+	
+	if not (_tracker is None) or not (_db is None):
+		#Timestamp
+		timestamp 	= time.time()
+		#Get Filters
+		filters 	= get_filters(log, _db)
+		#1. 	Loop through filters & Insert all the data in the database
+		#for item in filters:
+			
+		#	filter_id 		= str(int(item['id']))
+		#	filter_object 	= _tracker.filter(filter_id)
+		#	filter_issues 	= _tracker.search_issues(filter_object.jql)
+
+		#log.info("Filter %s: %s" % (item['name'], filter_id))
+		#log.info("-----------------------------------------------------")
+ 	 	#tickets 		= []
+ 		#for issue_object in filter_issues:
+		#	log.info("Inserting: %s" % issue_object.key)
+		#	print issue_object.key
+		#	single_issue = _tracker.issue(issue_object.key)
+		#	print single_issue.fields
+		#	tickets.append(issue_object.key)
+		#	print single_issue.fields.summary
+		#	#insert_observation(log, _db, filter_id, tickets, timestamp)
+
+		#2. 	Insert the data in the page
+		page = generate_page(log, _db, _tracker, "SCTX Report")
+
+		#Insert page into confluence
+		insert_page(page, "SCTX Report")
+	else:
+		log.error("Failed to execute, connection to Jira or Mongo Failed.")

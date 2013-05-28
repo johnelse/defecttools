@@ -28,10 +28,15 @@ DATE=`date +"%d%m%Y"`
 printf "===$0 Started at: " | tee -a $STDOUT_FILE $STDERR_FILE
 date | tee -a $STDOUT_FILE  $STDERR_FILE
 
-#Get data from jira and insert in the database
-/home/ring3defects/defecttools/scripts/retrieve_data >> $STDOUT_FILE 2>> $STDERR_FILE
-#Get data from database, compare, calculate, and update wiki
-/home/ring3defects/defecttools/scripts/update_graphs >> $STDOUT_FILE 2>> $STDERR_FILE
+# DDD Project
+# Get data from jira and insert in the database
+/home/ring3defects/defecttools/defecttools/ddd/retrieve_data >> $STDOUT_FILE 2>> $STDERR_FILE
+# Get data from database, compare, calculate, and update wiki
+/home/ring3defects/defecttools/defecttools/ddd/update_graphs >> $STDOUT_FILE 2>> $STDERR_FILE
+
+# CW Project
+/home/ring3defects/defecttools/defecttools/cw/update_graphs >> $STDOUT_FILE 2>> $STDERR_FILE
+
 # Snapshot the database.
 cp $DATA_DIR/tickets.db $DATA_DIR/backups/tickets-${DATE}.db
 
