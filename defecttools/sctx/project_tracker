@@ -18,11 +18,13 @@ import string
 import xmlrpclib
 import logging
 import pymongo
+import numpy as np
 
 from jira.client import JIRA
 from workdays import networkdays
 from defecttools.lib import config
 from datetime import date, datetime, timedelta
+
 
 # Jira functions
 
@@ -49,25 +51,30 @@ def get_full_report(log, resource, tickets):
 		for item in tickets_list:
 			single_ret = []
 			obj = resource.issue(item)
-			single_ret.append(obj.key)									# Key
-			string = ''
+			single_ret.append(obj.key)									# Key 0 
+			string = None
 			for component in obj.fields.components:
+				if string is None:
+					string = ''
 				sub_obj = resource.component(component.id)
 				string += sub_obj.name
-			single_ret.append(string)									# Components
+			single_ret.append(string)									# Components 1 
 			if obj.fields.customfield_10080 is not None:
-				single_ret.append(obj.fields.customfield_10080.value) 	# Teams
+				single_ret.append(obj.fields.customfield_10080.value) 	# Teams 2 
 			else:
-				single_ret.append(obj.fields.customfield_10080)			# Failure
-			single_ret.append(obj.fields.summary)						# Summary
+				single_ret.append(obj.fields.customfield_10080)			# Failure 2
+			single_ret.append(obj.fields.summary)						# Summary 3
 			priority_obj = resource.priority(obj.fields.priority.id)
-			single_ret.append(priority_obj.iconUrl) 					# Priority Icon
-			single_ret.append(priority_obj.name)						# Priority Name
-			single_ret.append(obj.fields.assignee.name)					# Assignee
-			single_ret.append(obj.fields.reporter.name)					# Reporter
-			single_ret.append(obj.fields.customfield_10450)				# Eng. Owner
-			single_ret.append(obj.fields.created)						# Created
-			single_ret.append(obj.fields.updated)						# Updated
+			single_ret.append(priority_obj.iconUrl) 					# Priority Icon 4
+			single_ret.append(priority_obj.name)						# Priority Name 5
+			single_ret.append(obj.fields.assignee.name)					# Assignee 6
+			single_ret.append(obj.fields.reporter.name)					# Reporter 7 
+			if obj.fields.customfield_10450 is not None:
+				single_ret.append(obj.fields.customfield_10450.name)	# Eng. Owner 8 
+			else:
+				single_ret.append(obj.fields.customfield_10450)			# Failure 8
+			single_ret.append(obj.fields.created)						# Created 9
+			single_ret.append(obj.fields.updated)						# Updated 10
 			days_active = get_days_active(log, obj.fields.created)		
 			single_ret.append(days_active)								# Number of days
 			ret.append(single_ret)
@@ -252,9 +259,26 @@ def get_open_array(log, days_array):
 		log.error("Failed to make open array: %s" % e)
 		return None
 
+
+def get_days_array(log, days_array):
+	'''
+	Get distribution of days
+	'''
+	log.info("Getting number of open days per ticket distriubted by 10")
+	try:
+		work_array = []
+		for item in days_array:
+			day = int(item[11])
+			work_array.append(day)
+		return_array = np.histogram(work_array,bins=30, range=(0,210))		
+		return return_array
+	except Exception,e:
+		log.error("Failed to make days array: %s" % e)
+		return None
+
 # Templating functions
 
-def template_main(log, full_report, team_array, open_array, resource, page):
+def template_main(log, full_report, team_array, open_array, days_array, resource, page):
 	'''
 	Define main template
 	'''
@@ -269,23 +293,21 @@ def template_main(log, full_report, team_array, open_array, resource, page):
 
 		print >>f, stylesheet()		
 		print >>f, "\n {color:#c0c0c0}This page is automatically generated; do not edit.{color} \n\n"
-		print >>f, "h1. SCTX General Report - "
-		print >>f, str(report_date)
-		print >>f, " - "
-		print >>f, str(WeekNum)
+		print >>f, "h1. SCTX General Report - %s - Week: %s" % (str(report_date), str(WeekNum))
 		print >>f, "\n"
 		print >>f, "{html}<table><tbody><tr><th>{html}"
 		print >>f, "h3. Tickets by Team"
 		print >>f, "{html}</th><th>{html}"
 		print >>f, "h3. Open days"
 		print >>f, "{html}</th></tr><tr><td>{html}"
-		#print >>f, template_teams(log, team_array)
+		print >>f, template_teams(log, team_array)
 		print >>f, "{html}</td><td>{html}"
-		#print >>f, template_days(log, open_array)
+		print >>f, template_days(log, open_array)
 		print >>f, "{html}</td></tr></tbody></table> \n \n {html}"
 		print >>f, "h3. Tickets"
-		#print >>f, template_table(log, full_report)
+		print >>f, template_table(log, full_report)
 		print >>f, "\n\n h3. Distribution \n\n"
+		print >>f, template_chart(log, days_array, open_array)
 		f.close()
 		f 			= open(filename, "r")
 		read 		= f.read()
@@ -295,91 +317,150 @@ def template_main(log, full_report, team_array, open_array, resource, page):
 		log.error("Failed to create page: %s" % e)
 		return None
 
+def template_chart(log, data, days):
+	'''
+	Template for distribution of tickets.
+	'''
+	try:
+		first = False
+		total = int(days[9])
+		return_string = "{chart:type=bar|title=Distribution of open bug tickets|xLabel=Days|yLabel=Tickets|dataDisplay=after|domainAxisTickUnit=1|width=1500}"
+		return_string += "|| distribution ||"
+		length1 = len(data[0])
+		loop1 = 0
+		for item in data[1]:
+			if first is True:
+				if loop1 is length1:
+					return_string += "%s > ||" % (int(item)-7)
+				else:
+					return_string += "%s - %s ||" % (int(item)-7, int(item))
+					loop1 += 1
+			else:
+				first = True
+				loop1 += 1
+
+		return_string += "\n | Tickets |"
+		length = len(data[0])
+		loop = 1
+		acc = 0
+		for item in data[0]:
+			if loop is length:
+				return_string += "%s |" % ((total-acc)+item)
+			else:
+				return_string += "%s |" % item
+				acc += item
+				loop += 1
+		return_string += "{chart}"
+		return return_string
+	except Exception,e:
+		log.error("Failed to create template for a bar: %s" % e)
+		return None
 
 def template_table(log, data):
 	'''
 	Template markup for confluence table.
 	'''
-	return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=''}\n"
-	return_string += "|| *Key* \\ || *Components* \\ || *Team* \\ || *Summary* \\ || *Priority* \\ || *Summary* \\ || *Assignee* \\ || *Eng. Owner* \\ || *Created* \\ || *Updated* \\ || *Days Open* \\ ||\n"
-	for item in data:
-		return_string += "|"
-		return_string += item[0]
-		return_string += "|"
-		return_string += item[1]
-		return_string += "|"
-		return_string += item[2]
-		return_string += "|"
-		return_string += item[3]
-		return_string += "|"
-		return_string += item[4]
-		return_string += "|"
-		return_string += item[5]
-		return_string += "|"
-		return_string += item[6]
-		return_string += "|"
-		return_string += item[7]
-		return_string += "|"
-		return_string += item[8]
-		return_string += "|"
-		return_string += item[9]
-		return_string += "|"
-		return_string += item[10]
-		return_string += "|\n"
-	return_string += "{table-plus}\n"
-	return return_string
+	try:
+		return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|sortIcon=true|rules=none|class=''}\n"
+		return_string += "|| *Key* || *Components* || *Team* || *Summary* || *Priority* ||  *Assignee*  || *Reporter*  || *Eng. Owner*  || *Created*  || *Updated*  || *Days Open*  ||\n"
+		for item in data:
+			return_string += "| ["
+			return_string += str(item[0])
+			return_string += "|https://tracker.vmd.citrix.com/browse/"
+			return_string += str(item[0])
+			return_string += "]|"
+			return_string += str(item[1])
+			return_string += "|"
+			return_string += str(item[2])
+			return_string += "|"
+			return_string += str(item[3])
+			return_string += "| !%s|border=0! %s | " % (str(item[4]), str(item[5]))
+			return_string += str(item[6])
+			return_string += "|"
+			return_string += str(item[7])
+			return_string += "|"
+			return_string += str(item[8])
+			return_string += "|"
+			temp_created = item[9].split("T")
+			return_string += str(temp_created[0])
+			return_string += "|"
+			temp_updated = item[10].split("T")
+			return_string += str(temp_updated[0])
+			return_string += "|"
+			compare = int(item[11])			
+			sring_color = ''
+			if compare > 0 and compare < 31:
+				string_color = "{color:#339966} *%s* {color}" % str(compare)
+			elif compare > 30 and compare < 49:
+				string_color = "{color:#ffcc00} *%s* {color}" % str(compare)
+			else:
+				string_color = "{color:#ff0000} *%s* {color}" % str(compare)
+			return_string += string_color
+			return_string += "|\n"
+		return_string += "{table-plus}\n"
+		return return_string
+	except Exception,e:
+		log.error("Failed to create template for table: %s" % e)
+		return None
 
 def template_teams(log, data):
 	'''
 	Template markup for teams.
 	'''
-	total = 0
-	return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=innerTable}\n"
-	return_string += "|| *Team* \\ || *Tickets* \\ ||\n"
-	for k, v in data.iteritems():
-		return_string += "| "
-		return_string += k
-		return_string += " \\ |"
-		return_string += v
-		return_string += " |\n"
-		total += int(v)
-	return_string += "| *Total* \\ |"
-	return_string += total
-	return_string += "| \\ | |\n"
-	return_string += "{table-plus}\n"
-	return return_string
+	try:
+		total = 0
+		return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=innerTable1}\n"
+		return_string += "|| *Team* || *Tickets*  ||\n"
+		for k, v in data.iteritems():
+			return_string += "| "
+			return_string += str(k)
+			return_string += " |"
+			return_string += str(v)
+			return_string += " |\n"
+			total += int(v)
+		return_string += "| *Total* | *"
+		return_string += str(total)
+		return_string += "*|  | |\n"
+		return_string += "{table-plus}\n"
+		return return_string
+	except Exception,e:
+		log.error("Failed to create template for teams: %s" % e)
+		return None
 
 
 def template_days(log, data):
-	return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=innerTable}\n"
-	return_string += "|| *Open days* \\ || *Tickets* \\ || *Percentage* \\ || *Average* \\ ||\n"
-	return_string += "| 0 - 30 \\ |"
-	return_string += data[0]
-	return_string += " | "
-	return_string += data[1]
-	return_string += " | {color:#339966}"
-	return_string += data[2]
-	return_string += " {color}| \n"
-	return_string += "| 31 - 48 \\ |"
-	return_string += data[3]
-	return_string += " | "
-	return_string += data[4]
-	return_string += " | {color:#993300}"
-	return_string += data[5]
-	return_string += " {color}| \n"
-	return_string += "| 48 - &infi; \\ |"
-	return_string += data[7]
-	return_string += " | "
-	return_string += data[8]
-	return_string += " | {color:#ff0000}"
-	return_string += data[9]
-	return_string += " {color}| \n"
-	return_string += "| *Total* \\ |"
-	return_string += data[10]
-	return_string += " \\ | 100% \\ | | \\ |\n"
-	return_string += "{table-plus}\n"
-	return return_string
-
+	try:
+		return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=innerTable2}\n"
+		return_string += "|| *Open days*  || *Tickets*  || *Percentage*  || *Average* ||\n"
+		return_string += "| 0 - 30  |"
+		return_string += str(data[0])
+		return_string += " | "
+		return_string += str(data[1])
+		return_string += "% | {color:#339966}*"
+		return_string += str(data[2])
+		return_string += "* {color}| \n"
+		return_string += "| 31 - 48  |"
+		return_string += str(data[3])
+		return_string += " | "
+		return_string += str(data[4])
+		return_string += "% | {color:#ffcc00}*"
+		return_string += str(data[5])
+		return_string += "* {color}| \n"
+		return_string += "| 48 >  |"
+		return_string += str(data[6])
+		return_string += " | "
+		return_string += str(data[7])
+		return_string += "% | {color:#ff0000}*"
+		return_string += str(data[8])
+		return_string += "*{color}| \n"
+		return_string += "| *Total*  |*"
+		return_string += str(data[9])
+		return_string += "* | *100%*  | |  |\n"
+		return_string += "{table-plus}\n"
+		return return_string
+	except Exception,e:
+		log.error("Failed to create template for days: %s" % e)
+		return None
 
 def stylesheet():
 	string = "{style}"
@@ -393,11 +474,17 @@ def stylesheet():
 	string += ".wiki-content table {"
 	string += "width: 100%;"
 	string += "}"
-	string += ".wiki-content th.confluenceTh {"
+	string += ".wiki-content table.innerTable1 {"
+	string += "width: auto; !important;"
+	string += "}"
+	string += ".wiki-content table.innerTable2 {"
+	string += "width: auto; !important;"
+	string += "}"
+	string += ".wiki-content table.innerTable1 th.confluenceTh {"
 	string += "width: 50%; !important;"
 	string += "}"
-	string += ".wiki-content table.innerTable {"
-	string += "width: auto; !important;"
+	string += ".wiki-content table.innerTable2 th.confluenceTh {"
+	string += "width: 25%; !important;"
 	string += "}"
 	string += ".wiki-content td.confluenceTd, .wiki-content th.confluenceTh"
 	string += "{"
@@ -428,8 +515,8 @@ def generate_page(log, db, resource, page):
 	full_report 		= get_full_report(log, resource, tickets)
 	team_array 			= get_team_array(log, full_report)
 	open_array 			= get_open_array(log, full_report)
-	print open_array
-	template			= template_main(log, full_report, team_array, open_array, resource, page)
+	days_array 			= get_days_array(log, full_report)
+	template			= template_main(log, full_report, team_array, open_array, days_array, resource, page)
 	return template
 
 # Main loop - Don't forget to uncomment the insert
@@ -452,23 +539,24 @@ if __name__ == "__main__":
 		#Get Filters
 		filters 	= get_filters(log, _db)
 		#1. 	Loop through filters & Insert all the data in the database
-		#for item in filters:
+		for item in filters:
 			
-		#	filter_id 		= str(int(item['id']))
-		#	filter_object 	= _tracker.filter(filter_id)
-		#	filter_issues 	= _tracker.search_issues(filter_object.jql)
+			filter_id 		= str(int(item['id']))
+			filter_object 	= _tracker.filter(filter_id)
+			filter_issues 	= _tracker.search_issues(filter_object.jql)
 
-		#log.info("Filter %s: %s" % (item['name'], filter_id))
-		#log.info("-----------------------------------------------------")
- 	 	#tickets 		= []
- 		#for issue_object in filter_issues:
-		#	log.info("Inserting: %s" % issue_object.key)
+		log.info("Filter %s: %s" % (item['name'], filter_id))
+		log.info("-----------------------------------------------------")
+ 	 	tickets 		= []
+ 		for issue_object in filter_issues:
+			log.info("Inserting: %s" % issue_object.key)
 		#	print issue_object.key
-		#	single_issue = _tracker.issue(issue_object.key)
+			single_issue = _tracker.issue(issue_object.key)
 		#	print single_issue.fields
-		#	tickets.append(issue_object.key)
+			tickets.append(issue_object.key)
 		#	print single_issue.fields.summary
-		#	#insert_observation(log, _db, filter_id, tickets, timestamp)
+
+		insert_observation(log, _db, filter_id, tickets, timestamp)
 
 		#2. 	Insert the data in the page
 		page = generate_page(log, _db, _tracker, "SCTX Report")
