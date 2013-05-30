@@ -77,6 +77,7 @@ def get_full_report(log, resource, tickets):
 			single_ret.append(obj.fields.updated)						# Updated 10
 			days_active = get_days_active(log, obj.fields.created)		
 			single_ret.append(days_active)								# Number of days
+			single_ret.append(obj.fields.status.id) 					# Status of ticket
 			ret.append(single_ret)
 		return ret
 	except Exception,e:
@@ -259,8 +260,35 @@ def get_open_array(log, days_array):
 		log.error("Failed to make open array: %s" % e)
 		return None
 
+def get_status_array(log, report_array):
+	'''
+	Get status from full report and generate statistics.
+	'''
+	log.info("Getting tickets per status")
+	try:	
+		status_dict = {
+			'open' : 0,
+			'customer' : 0,
+			'acknowledged' : 0,
+			'other' : 0
+		}
 
-def get_days_array(log, days_array):
+		for item in report_array:
+			variable = int(item[12])		
+			if variable == 1:
+				status_dict['open'] += 1
+			elif variable == 10017:
+				status_dict['customer'] += 1
+			elif variable == 10006:
+				status_dict['acknowledged'] += 1
+			else:
+				status_dict['other'] += 1
+		return status_dict
+	except Exception,e:
+		log.error("Failed to make status array: %s" % e)
+		return None
+
+def get_days_array(log, days_array, acknowledged=False):
 	'''
 	Get distribution of days
 	'''
@@ -269,8 +297,13 @@ def get_days_array(log, days_array):
 		work_array = []
 		for item in days_array:
 			day = int(item[11])
-			work_array.append(day)
-		return_array = np.histogram(work_array,bins=30, range=(0,210))		
+			if acknowledged is True:
+				if int(item[12]) == 10006:
+					work_array.append(day)
+			else:
+				if int(item[12]) != 10006:
+					work_array.append(day)
+		return_array = np.histogram(work_array,bins=20, range=(0,140))		
 		return return_array
 	except Exception,e:
 		log.error("Failed to make days array: %s" % e)
@@ -278,7 +311,7 @@ def get_days_array(log, days_array):
 
 # Templating functions
 
-def template_main(log, full_report, team_array, open_array, days_array, resource, page):
+def template_main(log, full_report, team_array, open_array, days_array, days_array_ack, status_array, page):
 	'''
 	Define main template
 	'''
@@ -294,20 +327,21 @@ def template_main(log, full_report, team_array, open_array, days_array, resource
 		print >>f, stylesheet()		
 		print >>f, "\n {color:#c0c0c0}This page is automatically generated; do not edit.{color} \n\n"
 		print >>f, "h1. SCTX General Report - %s - Week: %s" % (str(report_date), str(WeekNum))
-		print >>f, "\n"
+		print >>f, "----\n"
 		print >>f, "{html}<table><tbody><tr><th>{html}"
 		print >>f, "h3. Tickets by Team"
 		print >>f, "{html}</th><th>{html}"
-		print >>f, "h3. Open days"
+		print >>f, "h3. Ticket by Open days"
 		print >>f, "{html}</th></tr><tr><td>{html}"
 		print >>f, template_teams(log, team_array)
 		print >>f, "{html}</td><td>{html}"
-		print >>f, template_days(log, open_array)
-		print >>f, "{html}</td></tr></tbody></table> \n \n {html}"
+		print >>f, template_days(log, open_array, status_array)
+		print >>f, "{html}</td></tr></tbody></table> \n \n <br />{html}\n----"
 		print >>f, "h3. Tickets"
 		print >>f, template_table(log, full_report)
-		print >>f, "\n\n h3. Distribution \n\n"
-		print >>f, template_chart(log, days_array, open_array)
+		print >>f, "\n----\n h3. Distribution \n\n"
+		print >>f, template_chart(log, days_array, days_array_ack, open_array)
+		print >>f, "\n----\n"
 		f.close()
 		f 			= open(filename, "r")
 		read 		= f.read()
@@ -317,14 +351,34 @@ def template_main(log, full_report, team_array, open_array, days_array, resource
 		log.error("Failed to create page: %s" % e)
 		return None
 
-def template_chart(log, data, days):
+def check_customer(status_id):
+	'''
+	Based on status_id see if this ticket is awaiting customer feedback.
+	'''
+	try:
+		return_string = ''
+		status_id = int(status_id)
+		if status_id == 1:
+			return_string = 'Open - Unclassified'
+		elif status_id == 10017:
+			return_string = 'Awaiting Customer'
+		elif status_id == 10006:
+			return_string = 'Acknowledged'
+		else:
+			return_string = 'Unkown'
+		return return_string
+	except Exception,e:
+		log.error("Failed to check status: %s" % e)
+		return None
+
+def template_chart(log, data, data_ack, days):
 	'''
 	Template for distribution of tickets.
 	'''
 	try:
 		first = False
 		total = int(days[9])
-		return_string = "{chart:type=bar|title=Distribution of open bug tickets|xLabel=Days|yLabel=Tickets|dataDisplay=after|domainAxisTickUnit=1|width=1500}"
+		return_string = "{chart:type=bar|title=Distribution of open bug tickets|xLabel=Days|yLabel=Tickets|dataDisplay=after|domainAxisTickUnit=1|stacked=true|width=1500}"
 		return_string += "|| distribution ||"
 		length1 = len(data[0])
 		loop1 = 0
@@ -350,6 +404,19 @@ def template_chart(log, data, days):
 				return_string += "%s |" % item
 				acc += item
 				loop += 1
+
+		return_string += "\n | Acknowledged Tickets |"
+		length2 = len(data_ack[0])
+		loop2 	= 1
+		acc2 	= 0
+		for item in data_ack[0]:
+			if loop2 is length2:
+				return_string += "%s |" % ((total-acc2)+item)
+			else:
+				return_string += "%s |" % item
+				acc2 += item
+				loop2 += 1
+
 		return_string += "{chart}"
 		return return_string
 	except Exception,e:
@@ -362,7 +429,7 @@ def template_table(log, data):
 	'''
 	try:
 		return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|sortIcon=true|rules=none|class=''}\n"
-		return_string += "|| *Key* || *Components* || *Team* || *Summary* || *Priority* ||  *Assignee*  || *Reporter*  || *Eng. Owner*  || *Created*  || *Updated*  || *Days Open*  ||\n"
+		return_string += "|| *Key* || *Components* || *Team* || *Summary* || *Priority* ||  *Assignee*  || *Reporter*  || *Eng. Owner*  || *Created*  || *Updated*  || *Days Open* || *Status* ||\n"
 		for item in data:
 			return_string += "| ["
 			return_string += str(item[0])
@@ -396,7 +463,10 @@ def template_table(log, data):
 			else:
 				string_color = "{color:#ff0000} *%s* {color}" % str(compare)
 			return_string += string_color
-			return_string += "|\n"
+			return_string += "|"
+			customer_string = check_customer(item[12])
+			return_string += customer_string
+			return_string += "\n"
 		return_string += "{table-plus}\n"
 		return return_string
 	except Exception,e:
@@ -428,7 +498,7 @@ def template_teams(log, data):
 		return None
 
 
-def template_days(log, data):
+def template_days(log, data, status):
 	try:
 		return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=innerTable2}\n"
 		return_string += "|| *Open days*  || *Tickets*  || *Percentage*  || *Average* ||\n"
@@ -457,6 +527,18 @@ def template_days(log, data):
 		return_string += str(data[9])
 		return_string += "* | *100%*  | |  |\n"
 		return_string += "{table-plus}\n"
+		return_string += "\n\n{html}<br />{html}"
+		return_string += "\n"
+		return_string += "h3. Tickets by Status"
+		return_string += "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=innerTable}"
+		return_string += "|| *Status*  || *Tickets* ||\n"
+		return_string += "| Open  | %s |\n" % status['open']
+		return_string += "| Awaiting customer  | %s |\n" % status['customer']
+		return_string += "| Acknowledged  | %s |\n" % status['acknowledged']
+		return_string += "| Other  | %s |\n" % status['other']
+		calculation    = int(status['open']) + int(status['customer']) + int(status['acknowledged']) + int(status['other'])
+		return_string += "| *Total*  | *%s* |\n" % str(calculation)
+		return_string += "{table-plus}\n"		
 		return return_string
 	except Exception,e:
 		log.error("Failed to create template for days: %s" % e)
@@ -494,6 +576,14 @@ def stylesheet():
 	string += "		.wiki-content td {"
 	string += "	 vertical-align: top; !important;"
 	string += "}"
+	string += "hr {"
+	string += "margin: 10px 0;"
+	string += "background-color: #ccc;"
+	string += "border: none; height: 4px;"
+	string += "}"
+	string += ".wiki-content {"
+	string += "padding: 15px"
+	string += "}"
 	string += "{style}"
 	return string
 
@@ -515,9 +605,12 @@ def generate_page(log, db, resource, page):
 	full_report 		= get_full_report(log, resource, tickets)
 	team_array 			= get_team_array(log, full_report)
 	open_array 			= get_open_array(log, full_report)
-	days_array 			= get_days_array(log, full_report)
-	template			= template_main(log, full_report, team_array, open_array, days_array, resource, page)
+	status_array 		= get_status_array(log, full_report)
+	days_array			= get_days_array(log, full_report, False)
+	days_array_ack 		= get_days_array(log, full_report, True)
+	template			= template_main(log, full_report, team_array, open_array, days_array, days_array_ack, status_array, page)
 	return template
+	
 
 # Main loop - Don't forget to uncomment the insert
 
