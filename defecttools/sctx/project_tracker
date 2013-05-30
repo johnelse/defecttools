@@ -406,16 +406,8 @@ def template_chart(log, data, data_ack, days):
 				loop += 1
 
 		return_string += "\n | Acknowledged Tickets |"
-		length2 = len(data_ack[0])
-		loop2 	= 1
-		acc2 	= 0
 		for item in data_ack[0]:
-			if loop2 is length2:
-				return_string += "%s |" % ((total-acc2)+item)
-			else:
-				return_string += "%s |" % item
-				acc2 += item
-				loop2 += 1
+			return_string += "%s |" % item				
 
 		return_string += "{chart}"
 		return return_string
