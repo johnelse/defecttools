@@ -67,10 +67,10 @@ def get_full_report(log, resource, tickets):
 			priority_obj = resource.priority(obj.fields.priority.id)
 			single_ret.append(priority_obj.iconUrl) 					# Priority Icon 4
 			single_ret.append(priority_obj.name)						# Priority Name 5
-			single_ret.append(obj.fields.assignee.name)					# Assignee 6
-			single_ret.append(obj.fields.reporter.name)					# Reporter 7 
+			single_ret.append(obj.fields.assignee.displayName)					# Assignee 6
+			single_ret.append(obj.fields.reporter.displayName)					# Reporter 7 
 			if obj.fields.customfield_10450 is not None:
-				single_ret.append(obj.fields.customfield_10450.name)	# Eng. Owner 8 
+				single_ret.append(obj.fields.customfield_10450.displayName)	# Eng. Owner 8 
 			else:
 				single_ret.append(obj.fields.customfield_10450)			# Failure 8
 			single_ret.append(obj.fields.created)						# Created 9
@@ -89,7 +89,18 @@ def get_days_active(log, created):
 	Get work days active since date.
 	'''
 	try:
-		bank_holidays = [date(year=2013,month=8,day=26),
+		bank_holidays = [		date(year=2012,month=5,day=7),
+						date(year=2012,month=6,day=4),
+						date(year=2012,month=6,day=5),
+						date(year=2012,month=8,day=27),
+						date(year=2012,month=12,day=25),
+						date(year=2012,month=12,day=26),
+						date(year=2013,month=1,day=1),
+						date(year=2013,month=3,day=29),
+						date(year=2013,month=4,day=1),
+						date(year=2013,month=5,day=6),
+						date(year=2013,month=5,day=27),
+						date(year=2013,month=8,day=26),
 						date(year=2013,month=12,day=25),
 						date(year=2013,month=12,day=26),
 						date(year=2014,month=1,day=1),
@@ -209,9 +220,15 @@ def get_team_array(log, team_array):
 			team = item[2]
 			if team is not None:				
 				if teams.get(team) is not None:
-					teams[team] += 1;					
+					teams[team] += 1					
 				else:
-					teams[team] = 1;				
+					teams[team] = 1	
+			else:
+				if teams.get('Unknown') is not None:
+					teams['Unknown'] += 1
+				else:
+					teams['Unknown'] = 1
+					
 		return teams
 	except Exception,e:
 		log.error("Failed to make team array: %s" % e)
@@ -233,10 +250,10 @@ def get_open_array(log, days_array):
 		for item in days_array:
 			day = int(item[11])
 			if day is not None:					
-				if day < 30:
+				if day <= 30:
 					one_c += 1
 					one_t += day
-				elif day > 30 and day < 48:
+				elif day > 30 and day <= 48:
 					two_c += 1
 					two_t += day
 				else:
@@ -303,7 +320,7 @@ def get_days_array(log, days_array, acknowledged=False):
 			else:
 				if int(item[12]) != 10006:
 					work_array.append(day)
-		return_array = np.histogram(work_array,bins=20, range=(0,140))		
+		return_array = np.histogram(work_array,bins=[0,11,21,31,41,49,61,71,81,91,101,111,121,131,141,151,161,171,181], range=(0,181))		
 		return return_array
 	except Exception,e:
 		log.error("Failed to make days array: %s" % e)
@@ -385,10 +402,14 @@ def template_chart(log, data, data_ack, days):
 		for item in data[1]:
 			if first is True:
 				if loop1 is length1:
-					return_string += "%s > ||" % (int(item)-7)
+					return_string += "%s > ||" % (int(item)-11)
 				else:
-					return_string += "%s - %s ||" % (int(item)-7, int(item))
-					loop1 += 1
+					if int(item) is 61:
+						return_string += "%s - %s ||" % (int(item)-13, int(item)-1)
+						loop1 += 1
+					else:
+						return_string += "%s - %s ||" % (int(item)-11, int(item)-1)
+						loop1 += 1
 			else:
 				first = True
 				loop1 += 1
@@ -473,7 +494,7 @@ def template_teams(log, data):
 		total = 0
 		return_string = "{table-plus:border=0|cellpadding=0|cellspaceing=0|rules=none|class=innerTable1}\n"
 		return_string += "|| *Team* || *Tickets*  ||\n"
-		for k, v in data.iteritems():
+		for k, v in sorted(data.iteritems()):
 			return_string += "| "
 			return_string += str(k)
 			return_string += " |"
@@ -625,11 +646,12 @@ if __name__ == "__main__":
 		filters 	= get_filters(log, _db)
 		#1. 	Loop through filters & Insert all the data in the database
 		for item in filters:
-			
+		#	
 			filter_id 		= str(int(item['id']))
 			filter_object 	= _tracker.filter(filter_id)
-			filter_issues 	= _tracker.search_issues(filter_object.jql)
-
+			filter_issues 	= _tracker.search_issues(filter_object.jql, startAt=0, maxResults=100)
+		
+		
 		log.info("Filter %s: %s" % (item['name'], filter_id))
 		log.info("-----------------------------------------------------")
  	 	tickets 		= []
