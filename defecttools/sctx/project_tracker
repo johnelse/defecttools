@@ -51,34 +51,36 @@ def get_full_report(log, resource, tickets):
 		for item in tickets_list:
 			single_ret = []
 			obj = resource.issue(item)
-			single_ret.append(obj.key)									# Key 0 
-			string = None
-			for component in obj.fields.components:
-				if string is None:
-					string = ''
-				sub_obj = resource.component(component.id)
-				string += sub_obj.name
-			single_ret.append(string)									# Components 1 
-			if obj.fields.customfield_10080 is not None:
-				single_ret.append(obj.fields.customfield_10080.value) 	# Teams 2 
-			else:
-				single_ret.append(obj.fields.customfield_10080)			# Failure 2
-			single_ret.append(obj.fields.summary)						# Summary 3
-			priority_obj = resource.priority(obj.fields.priority.id)
-			single_ret.append(priority_obj.iconUrl) 					# Priority Icon 4
-			single_ret.append(priority_obj.name)						# Priority Name 5
-			single_ret.append(obj.fields.assignee.displayName)					# Assignee 6
-			single_ret.append(obj.fields.reporter.displayName)					# Reporter 7 
-			if obj.fields.customfield_10450 is not None:
-				single_ret.append(obj.fields.customfield_10450.displayName)	# Eng. Owner 8 
-			else:
-				single_ret.append(obj.fields.customfield_10450)			# Failure 8
-			single_ret.append(obj.fields.created)						# Created 9
-			single_ret.append(obj.fields.updated)						# Updated 10
-			days_active = get_days_active(log, obj.fields.created)		
-			single_ret.append(days_active)								# Number of days
-			single_ret.append(obj.fields.status.id) 					# Status of ticket
-			ret.append(single_ret)
+			if int(obj.fields.issuetype.id) == 1:
+				single_ret.append(obj.key)									# Key 0 
+				string = None
+				for component in obj.fields.components:
+					if string is None:
+						string = ''
+					sub_obj = resource.component(component.id)
+					string += sub_obj.name
+				single_ret.append(string)									# Components 1 
+				if obj.fields.customfield_10080 is not None:
+					single_ret.append(obj.fields.customfield_10080.value) 	# Teams 2 
+				else:
+					single_ret.append(obj.fields.customfield_10080)			# Failure 2
+				single_ret.append(obj.fields.summary)						# Summary 3
+				priority_obj = resource.priority(obj.fields.priority.id)
+				single_ret.append(priority_obj.iconUrl) 					# Priority Icon 4
+				single_ret.append(priority_obj.name)						# Priority Name 5
+				single_ret.append(obj.fields.assignee.displayName)					# Assignee 6
+				single_ret.append(obj.fields.reporter.displayName)					# Reporter 7 
+				if obj.fields.customfield_10450 is not None:
+					single_ret.append(obj.fields.customfield_10450.displayName)	# Eng. Owner 8 
+				else:
+					single_ret.append(obj.fields.customfield_10450)			# Failure 8
+				single_ret.append(obj.fields.created)						# Created 9
+				single_ret.append(obj.fields.updated)						# Updated 10
+				days_active = get_days_active(log, obj.fields.created)		
+				single_ret.append(days_active)								# Number of days
+				single_ret.append(obj.fields.status.id)
+									# Status of ticket
+				ret.append(single_ret)
 		return ret
 	except Exception,e:
 		log.error("Failed to get report information from JIRA: %s" % e)
@@ -650,7 +652,6 @@ if __name__ == "__main__":
 			filter_id 		= str(int(item['id']))
 			filter_object 	= _tracker.filter(filter_id)
 			filter_issues 	= _tracker.search_issues(filter_object.jql, startAt=0, maxResults=100)
-		
 		
 		log.info("Filter %s: %s" % (item['name'], filter_id))
 		log.info("-----------------------------------------------------")
