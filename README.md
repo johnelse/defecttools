@@ -53,11 +53,14 @@ CREATE UNIQUE INDEX fid on filters(id);`
 - Insert filters into the filters collection using the following json representation:
 ```{ "_id" : <_id>, "id" : <filter id in jira>, "name" : <Custom filter name>, "type" : <0 for normal filter use, 1 to get parent tickets(for merge)> }
 ```
+
 using the following db.filters.insert({ <json representation> })
 - Create trackermetrics (`use trackermetrics`)
 - Inert filters into the filters colelction using the following json representation:
-```{ "_id" : <_id>, "id" : <filter id in jira>, "name" : <Custom filter name>} using the following db.filters.insert({ <json representation> })
+```{ "_id" : <_id>, "id" : <filter id in jira>, "name" : <Custom filter name>}
 ```
+
+using the following db.filters.insert({ <json representation> })
 
 ### Configuration
 
