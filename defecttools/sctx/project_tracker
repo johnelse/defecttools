@@ -25,6 +25,9 @@ from workdays import networkdays
 from defecttools.lib import config
 from datetime import date, datetime, timedelta
 
+# project_tracker
+# 
+# See __main__ for main programming loop
 
 # Jira functions
 
@@ -86,54 +89,6 @@ def get_full_report(log, resource, tickets):
 		log.error("Failed to get report information from JIRA: %s" % e)
 		return None
 
-def get_days_active(log, created):
-	'''
-	Get work days active since date.
-	'''
-	try:
-		bank_holidays = [		date(year=2012,month=5,day=7),
-						date(year=2012,month=6,day=4),
-						date(year=2012,month=6,day=5),
-						date(year=2012,month=8,day=27),
-						date(year=2012,month=12,day=25),
-						date(year=2012,month=12,day=26),
-						date(year=2013,month=1,day=1),
-						date(year=2013,month=3,day=29),
-						date(year=2013,month=4,day=1),
-						date(year=2013,month=5,day=6),
-						date(year=2013,month=5,day=27),
-						date(year=2013,month=8,day=26),
-						date(year=2013,month=12,day=25),
-						date(year=2013,month=12,day=26),
-						date(year=2014,month=1,day=1),
-						date(year=2014,month=4,day=18),
-						date(year=2014,month=4,day=21),
-						date(year=2014,month=5,day=5),
-						date(year=2014,month=5,day=26),
-						date(year=2014,month=8,day=25),
-						date(year=2014,month=12,day=25),
-						date(year=2014,month=12,day=26),
-						date(year=2015,month=1,day=1),
-						date(year=2015,month=4,day=3),
-						date(year=2015,month=4,day=6),
-						date(year=2015,month=5,day=4),
-						date(year=2015,month=5,day=25),
-						date(year=2015,month=8,day=31),
-						date(year=2015,month=12,day=25),
-						date(year=2015,month=12,day=28)]
-		today 	= date.today();
-		origin 	= created.split('T')
-		split 	= origin[0].split('-')
-		year	= int(split[0])
-		month 	= int(split[1])
-		day 	= int(split[2])
-		created = date(year=year,month=month,day=day)
-		ret = networkdays(created,today,bank_holidays)
-		return ret
-	except Exception, e:
-		log.error("Failed to get days active: %s" % e)
-		return None
-
 # Confluence functions
 
 def insert_page(content, name):
@@ -144,7 +99,7 @@ def insert_page(content, name):
 	try:
 		s = xmlrpclib.Server("%s/rpc/xmlrpc" % _config.confluence_url)
 		token = s.confluence1.login(_config.confluence_username, _config.confluence_password)
-		page = s.confluence1.getPage(token, "Ring3", name)
+		page = s.confluence1.getPage(token, "engp", name)
 		page["content"] = content
 		s.confluence1.storePage(token, page)
 	except Exception,e:
@@ -328,7 +283,58 @@ def get_days_array(log, days_array, acknowledged=False):
 		log.error("Failed to make days array: %s" % e)
 		return None
 
+def get_days_active(log, created):
+        '''
+        Get work days active since date.
+        '''
+        try:
+                bank_holidays = [               date(year=2012,month=5,day=7),
+                                                date(year=2012,month=6,day=4),
+                                                date(year=2012,month=6,day=5),
+                                                date(year=2012,month=8,day=27),
+                                                date(year=2012,month=12,day=25),
+                                                date(year=2012,month=12,day=26),
+                                                date(year=2013,month=1,day=1),
+                                                date(year=2013,month=3,day=29),
+                                                date(year=2013,month=4,day=1),
+                                                date(year=2013,month=5,day=6),
+                                                date(year=2013,month=5,day=27),
+                                                date(year=2013,month=8,day=26),
+                                                date(year=2013,month=12,day=25),
+                                                date(year=2013,month=12,day=26),
+                                                date(year=2014,month=1,day=1),
+                                                date(year=2014,month=4,day=18),
+                                                date(year=2014,month=4,day=21),
+                                                date(year=2014,month=5,day=5),
+                                                date(year=2014,month=5,day=26),
+                                                date(year=2014,month=8,day=25),
+                                                date(year=2014,month=12,day=25),
+                                                date(year=2014,month=12,day=26),
+                                                date(year=2015,month=1,day=1),
+                                                date(year=2015,month=4,day=3),
+                                                date(year=2015,month=4,day=6),
+                                                date(year=2015,month=5,day=4),
+                                                date(year=2015,month=5,day=25),
+                                                date(year=2015,month=8,day=31),
+                                                date(year=2015,month=12,day=25),
+                                                date(year=2015,month=12,day=28)]
+                today   = date.today();
+                origin  = created.split('T')
+                split   = origin[0].split('-')
+                year    = int(split[0])
+                month   = int(split[1])
+                day     = int(split[2])
+                created = date(year=year,month=month,day=day)
+                ret = networkdays(created,today,bank_holidays)
+                return ret
+        except Exception, e:
+                log.error("Failed to get days active: %s" % e)
+                return None
+
 # Templating functions
+#
+# The templating workflow is based on making a page in confluence and then using that source in here to generate
+# the page.
 
 def template_main(log, full_report, team_array, open_array, days_array, days_array_ack, status_array, page):
 	'''
@@ -337,7 +343,7 @@ def template_main(log, full_report, team_array, open_array, days_array, days_arr
 	try:
 		log.info("Writing confluence page to file")		
 
-		report_date = date.today().isoformat()
+		report_date     = date.today().isoformat()
 		WeekNum 	= date.today().isocalendar()[1]
 
 		filename 	= "/tmp/content.%s" % page
@@ -356,13 +362,14 @@ def template_main(log, full_report, team_array, open_array, days_array, days_arr
 		print >>f, "{html}</td><td>{html}"
 		print >>f, template_days(log, open_array, status_array)
 		print >>f, "{html}</td></tr></tbody></table> \n \n <br />{html}\n----"
+		print >>f, "h3. Distribution \n\n"
+		print >>f, template_chart(log, days_array, days_array_ack, open_array)
+                print >>f, "\n----\n"		
 		print >>f, "h3. Tickets"
 		print >>f, template_table(log, full_report)
-		print >>f, "\n----\n h3. Distribution \n\n"
-		print >>f, template_chart(log, days_array, days_array_ack, open_array)
 		print >>f, "\n----\n"
 		f.close()
-		f 			= open(filename, "r")
+		f 		= open(filename, "r")
 		read 		= f.read()
 		f.close()
 		return read
@@ -397,7 +404,7 @@ def template_chart(log, data, data_ack, days):
 	try:
 		first = False
 		total = int(days[9])
-		return_string = "{chart:type=bar|title=Distribution of open bug tickets|xLabel=Days|yLabel=Tickets|dataDisplay=after|domainAxisTickUnit=1|stacked=true|width=1500}"
+		return_string = "{chart:type=bar|title=Distribution of open bug tickets|xLabel=Days|yLabel=Tickets|dataDisplay=after|domainAxisTickUnit=1|stacked=true|width=1300}"
 		return_string += "|| distribution ||"
 		length1 = len(data[0])
 		loop1 = 0
@@ -608,27 +615,37 @@ def generate_page(log, db, resource, page):
 	'''
 	Insert page into confluence
 	'''
-	log.info("Generating page: %s: " % page)
-	data				= db.observations.find().sort(u'_id',pymongo.DESCENDING).limit(1)
-	filter_names_id		= []
-	filter_types 		= []
-	filters 			= get_filters(log, db)	
-	for record in data:
-		for item in filters:
-			tickets = [record[str(int(item['id']))]['tickets']]
-	
-	full_report 		= get_full_report(log, resource, tickets)
-	team_array 			= get_team_array(log, full_report)
-	open_array 			= get_open_array(log, full_report)
-	status_array 		= get_status_array(log, full_report)
-	days_array			= get_days_array(log, full_report, False)
-	days_array_ack 		= get_days_array(log, full_report, True)
-	template			= template_main(log, full_report, team_array, open_array, days_array, days_array_ack, status_array, page)
-	return template
+	log.info("Generating page.")
+	try:
+		# Get data from mongo db
+		data				= db.observations.find().sort(u'_id',pymongo.DESCENDING).limit(1)
+		filter_names_id		= []
+		filter_types 		= []
+		# Get all filters (in the sctx case for now only 1)
+		filters 			= get_filters(log, db)	
+		for record in data:
+			for item in filters:
+				tickets = [record[str(int(item['id']))]['tickets']]
+		# Get all the data from 'tracker'
+		full_report 		= get_full_report(log, resource, tickets)
+		
+		# Use the data to generate sub views needed for the different report elements
+		team_array 			= get_team_array(log, full_report)
+		open_array 			= get_open_array(log, full_report)
+		status_array 		= get_status_array(log, full_report)
+		days_array			= get_days_array(log, full_report, False)
+		days_array_ack 		= get_days_array(log, full_report, True)
+		
+		# Generate the template
+		template			= template_main(log, full_report, team_array, open_array, days_array, days_array_ack, status_array, page)
+		return template
+	except Exception,e:
+                log.error("Failed to generate main template: %s" % e)
+                return None
+		
 	
 
-# Main loop - Don't forget to uncomment the insert
-
+# Main loop 
 if __name__ == "__main__":
 	#Get configuration from the file specified in lib/config.py
 	_config 	= config.get_config()
@@ -640,7 +657,6 @@ if __name__ == "__main__":
 	#Database
 	_db 		= connect_database(log,_config.db_host,_config.db_port)
 	#Check if it has any use to continue
-	
 	if not (_tracker is None) or not (_db is None):
 		#Timestamp
 		timestamp 	= time.time()
@@ -667,9 +683,11 @@ if __name__ == "__main__":
 		insert_observation(log, _db, filter_id, tickets, timestamp)
 
 		#2. 	Insert the data in the page
-		page = generate_page(log, _db, _tracker, "SCTX Report")
+		page_title = "LCM - Weekly open SCTX status Report"
+		# Generate the page
+		page = generate_page(log, _db, _tracker, page_title)
 
-		#Insert page into confluence
-		insert_page(page, "SCTX Report")
+		# Insert page into confluence
+		insert_page(page, page_title)
 	else:
 		log.error("Failed to execute, connection to Jira or Mongo Failed.")
