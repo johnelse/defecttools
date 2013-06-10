@@ -1,9 +1,13 @@
 # Defecttools
 
-Python scripts to convert jira bugs into confluence metrics. Calculate defect counts and daily defect inflow/outflow; add this to the confluence wiki. project_metrics generates a list of tickets rather than the graphs.
+Python scripts to convert jira bugs into confluence metrics. Calculate defect counts and daily defect inflow/outflow; add this to the confluence wiki. CW project_metrics generates a list of tickets rather than the graphs. SCTX project_tracker uses tracker rather than jira, and has a customized report.
 
-### Setup Linux (Guide: Ubuntu 12.10 Server)
+### Separation
 
+Defecttools is separated into 3 different components in the defecttools folder. The original DDD is Dave's Defect Dashboard and handles the per team defect graphs. The second CW is a separated module in the folder cw that generated the clearwater reports. Finally SCTX handles the sctx report from tracker.
+
+
+### Setup (Guide: Ubuntu 12.10 Server)
 
 - Install linux distribution of choice
 - Update machine (`[sudo] apt-get update & [sudo] apt-get upgrade`)
@@ -14,7 +18,11 @@ Python scripts to convert jira bugs into confluence metrics. Calculate defect co
 - Install pymongo (`[sudo] pip install pymongo`)
 - Fix a bug with latest request (for more info: https://bitbucket.org/bspeakmon/jira-python/issue/9/jira-python-package-does-not-work-with-the). Uninstall latest version and install previous version `[sudo] pip uninstall requests`
 `[sudo] pip install requests==0.14.1`
-- Install mongodb (`[sudo] pip install pymongo`)
+- Install python mongodb library (`[sudo] pip install pymongo`)
+- Install networkdays (`[sudo] pip install workdays`)
+- Install python-dev (`sudo apt-get install python-dev`)
+- Install numpy (`[sudo] pip install numpy`)
+
 
 ### Git
 
@@ -33,7 +41,7 @@ CREATE TABLE teams (id integer primary key not null, name string);
 CREATE UNIQUE INDEX fid on filters(id);`
 - [Optional] Export the old data into the new database (see data/source on server for the old import files).
 
-### MongoDB (Guide: .filters account) - Used for Malcolm's Dashboard (MD)
+### MongoDB (Guide: .filters account) - Used for Malcolm's Dashboard (CW) & SCTX Report (SCTX)
 
 - Make sure mongodb is running (`[sudo] mongod`)
 - Enter the mongodb console (`mongo`)
@@ -52,8 +60,8 @@ using the following db.filters.insert({ <json representation> })
 ### Logs
 
 - Make a new directory logs `mkdir ~/logs`
-- Create a general log file `touch ddd_out`
-- Create a error log file `touch ddd_err`
+- Create a general log file `touch out`
+- Create a error log file `touch err`
 
 ### Cronjob
 
@@ -63,5 +71,8 @@ Sit back and enjoy!
 
 ## TODO
 
-- integration of DDD with MongoDB to increase the speed.
+- integration of DDD with MongoDB to increase the speed & remove dependency on SQLite.
 - Add historical data to MD to allow graphical representation
+- Refactor the code since all 3 share almost similar functions
+- Build in backup mechanisme for MongoDB
+- Reitegrate the Excel file output option
