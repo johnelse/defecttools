@@ -28,7 +28,9 @@ Defecttools is separated into 3 different components in the defecttools folder. 
 
 - Git clone this project onto your server `git clone git@github.com:johnelse/defecttools.git`
 
-### Sqlite (Guide: .filters account) - Used for Dave's Defect Dashboard (DDD)
+### Sqlite (Guide: .filters account)
+
+*Used for Dave's Defect Dashboard (DDD)*
 
 - Create a folder in the home directory to store the database `mkdir ~/data/defect_dashboard`
 - Inside this folder create a folder backups `mkdir ~/data/defect_dashboard/backups`
@@ -41,14 +43,21 @@ CREATE TABLE teams (id integer primary key not null, name string);
 CREATE UNIQUE INDEX fid on filters(id);`
 - [Optional] Export the old data into the new database (see data/source on server for the old import files).
 
-### MongoDB (Guide: .filters account) - Used for Malcolm's Dashboard (CW) & SCTX Report (SCTX)
+### MongoDB (Guide: .filters account)
+
+*Used for Malcolm's Dashboard (CW) & SCTX Report (SCTX)*
 
 - Make sure mongodb is running (`[sudo] mongod`)
 - Enter the mongodb console (`mongo`)
 - Switch to jirametrics database (`use jirametrics`)
 - Insert filters into the filters collection using the following json representation:
-{ "_id" : <_id>, "id" : <filter id in jira>, "name" : <Custom filter name>, "type" : <0 for normal filter use, 1 to get parent tickets(for merge)> }
+```{ "_id" : <_id>, "id" : <filter id in jira>, "name" : <Custom filter name>, "type" : <0 for normal filter use, 1 to get parent tickets(for merge)> }
+```
 using the following db.filters.insert({ <json representation> })
+- Create trackermetrics (`use trackermetrics`)
+- Inert filters into the filters colelction using the following json representation:
+```{ "_id" : <_id>, "id" : <filter id in jira>, "name" : <Custom filter name>} using the following db.filters.insert({ <json representation> })
+```
 
 ### Configuration
 
