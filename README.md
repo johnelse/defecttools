@@ -1,6 +1,6 @@
 # Defecttools
 
-Python scripts to convert jira bugs into confluence metrics. Calculate defect counts and daily defect inflow/outflow; add this to the confluence wiki. 
+Python scripts to convert jira bugs into confluence metrics. Calculate defect counts and daily defect inflow/outflow; add this to the confluence wiki. project_metrics generates a list of tickets rather than the graphs.
 
 ### Setup Linux (Guide: Ubuntu 12.10 Server)
 
@@ -65,11 +65,3 @@ Sit back and enjoy!
 
 - integration of DDD with MongoDB to increase the speed.
 - Add historical data to MD to allow graphical representation
-
-
-
-
-
-
-
-

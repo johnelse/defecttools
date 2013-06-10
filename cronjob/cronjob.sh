@@ -14,13 +14,15 @@
 # Configuration
 
 # Log location
-STDOUT_FILE=/home/ring3defects/logs/ddd_out
+STDOUT_FILE=/home/ring3defects/logs/out
 # Errorlog location
-STDERR_FILE=/home/ring3defects/logs/ddd_err
-# Database location
+STDERR_FILE=/home/ring3defects/logs/err
+# SQLiteDatabase location
 DATA_DIR=/home/ring3defects/data/defect_dashboard
+
 # Webserver directory
 #WEB_DIR=/home/ring3defects/public_html
+
 # Current data
 DATE=`date +"%d%m%Y"`
 
@@ -28,11 +30,19 @@ DATE=`date +"%d%m%Y"`
 printf "===$0 Started at: " | tee -a $STDOUT_FILE $STDERR_FILE
 date | tee -a $STDOUT_FILE  $STDERR_FILE
 
-#Get data from jira and insert in the database
-/home/ring3defects/defecttools/scripts/retrieve_data >> $STDOUT_FILE 2>> $STDERR_FILE
-#Get data from database, compare, calculate, and update wiki
-/home/ring3defects/defecttools/scripts/update_graphs >> $STDOUT_FILE 2>> $STDERR_FILE
-# Snapshot the database.
+# DDD Project
+# Get data from jira and insert in the database
+/home/ring3defects/defecttools/defecttools/ddd/retrieve_data >> $STDOUT_FILE 2>> $STDERR_FILE
+# Get data from database, compare, calculate, and update wiki
+/home/ring3defects/defecttools/defecttools/ddd/update_graphs >> $STDOUT_FILE 2>> $STDERR_FILE
+
+# CW Project
+/home/ring3defects/defecttools/defecttools/cw/project_metrics >> $STDOUT_FILE 2>> $STDERR_FILE
+
+# SCTX Project
+/home/ring3defects/defecttools/defecttools/sctx/project_tracker >> $STDOUT_FILE 2>> $STDERR_FILE
+
+# Snapshot the SQLite database.
 cp $DATA_DIR/tickets.db $DATA_DIR/backups/tickets-${DATE}.db
 
 # Finish log entry end
