@@ -36,8 +36,8 @@ date | tee -a $STDOUT_FILE  $STDERR_FILE
 # Get data from database, compare, calculate, and update wiki
 /home/ring3defects/defecttools/defecttools/ddd/update_graphs >> $STDOUT_FILE 2>> $STDERR_FILE
 
-# CW Project
-/home/ring3defects/defecttools/defecttools/cw/project_metrics >> $STDOUT_FILE 2>> $STDERR_FILE
+# MD Project
+/home/ring3defects/defecttools/defecttools/md/project_metrics >> $STDOUT_FILE 2>> $STDERR_FILE
 
 # SCTX Project
 /home/ring3defects/defecttools/defecttools/sctx/project_tracker >> $STDOUT_FILE 2>> $STDERR_FILE

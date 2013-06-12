@@ -1,10 +1,10 @@
 # Defecttools
 
-Python scripts to convert jira bugs into confluence metrics. Calculate defect counts and daily defect inflow/outflow; add this to the confluence wiki. CW project_metrics generates a list of tickets rather than the graphs. SCTX project_tracker uses tracker rather than jira, and has a customized report.
+Python scripts to convert jira bugs into confluence metrics. Calculate defect counts and daily defect inflow/outflow; add this to the confluence wiki. MD project_metrics generates a list of tickets rather than the graphs. SCTX project_tracker uses tracker rather than jira, and has a customized report.
 
 ### Separation
 
-Defecttools is separated into 3 different components in the defecttools folder. The original DDD is Dave's Defect Dashboard and handles the per team defect graphs. The second CW is a separated module in the folder cw that generated the clearwater reports. Finally SCTX handles the sctx report from tracker.
+Defecttools is separated into 3 different components in the defecttools folder. The original DDD is Dave's Defect Dashboard and handles the per team defect graphs. The second MD is a separated module in the folder md that generated the a list of tickets based on a filter in jira, and is able to get the parent tickets from merge request tickets (currently in use for clearwater reports). Finally SCTX handles the sctx report from tracker.
 
 
 ### Setup (Guide: Ubuntu 12.10 Server)
