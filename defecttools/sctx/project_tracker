@@ -685,7 +685,7 @@ if __name__ == "__main__":
 			tickets.append(issue_object.key)
 		#	print single_issue.fields.summary
 
-		# insert_observation(log, _db, filter_id, tickets, timestamp)
+		 insert_observation(log, _db, filter_id, tickets, timestamp)
 
 		#2. 	Insert the data in the page
 		page_title = "LCM - Weekly open SCTX status Report"
