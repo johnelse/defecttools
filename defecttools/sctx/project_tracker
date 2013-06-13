@@ -432,9 +432,14 @@ def template_chart(log, data, data_ack, days):
 		length = len(data[0])
 		loop = 1
 		acc = 0
+		other = 0
+
+		for item in data_ack[0]:
+                        other += item
+
 		for item in data[0]:
 			if loop is length:
-				return_string += "%s |" % ((total-acc)+item)
+				return_string += "%s |" % ((total-(acc+other))+item)
 			else:
 				return_string += "%s |" % item
 				acc += item
@@ -668,7 +673,7 @@ if __name__ == "__main__":
 		#Get Filters
 		filters 	= get_filters(log, _db)
 		#1. 	Loop through filters & Insert all the data in the database
-		for item in filters:
+	 	for item in filters:
 		#	
 			filter_id 		= str(int(item['id']))
 			filter_object 	= _tracker.filter(filter_id)
@@ -685,7 +690,7 @@ if __name__ == "__main__":
 			tickets.append(issue_object.key)
 		#	print single_issue.fields.summary
 
-		# insert_observation(log, _db, filter_id, tickets, timestamp)
+		insert_observation(log, _db, filter_id, tickets, timestamp)
 
 		#2. 	Insert the data in the page
 		page_title = "LCM - Weekly open SCTX status Report"
