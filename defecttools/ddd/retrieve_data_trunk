@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+#
+# Copyright (C) Citrix Systems Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation; version 2.1 only.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
+
+
+import os
+import time
+import sys
+import string
+import xmlrpclib
+import logging
+
+from jira.client import JIRA
+from defecttools.lib import config
+from sqlite3 import *
+
+def connect_jira(log, jira_server, jira_user, jira_password):
+	try:
+		log.info("Connecting to JIRA: %s" % jira_server)
+		jira_options = {'server': jira_server}
+		jira = JIRA(options=jira_options, basic_auth=(jira_user,jira_password))
+		return jira
+	except Exception as e:
+		log.error("Failed to connect to JIRA: %s" % e)
+		return None
+
+def list_filters(conn):
+    	curs = conn.cursor()
+    	try:
+        	curs.execute("SELECT * FROM filters")
+        	results = {}
+        	for row in curs:
+            		results[row[0]] = str(row[2])
+        	return results
+    	finally:
+        	curs.close()
+
+def create_new_run(time):
+	curs = conn.cursor()
+	try:
+		curs.execute("INSERT INTO runs VALUES(NULL, %d)" % int(time))
+		curs.execute("SELECT MAX(id) FROM runs")
+		return curs.fetchone()[0]
+	finally:
+		curs.close();
+
+def add_observation(conn, filter_id, issue, run):
+	curs = conn.cursor()
+	try:
+		#sys.stderr.write(str(filter_id));
+		#sys.stderr.write(issue.key);
+		#sys.stderr.write(issue.fields.priority.name);
+		#sys.stderr.write(issue.fields.status.name);
+		#sys.stderr.write('Unresolved' if (issue.fields.resolution is None) else issue.fields.resolution.name);
+		#sys.stderr.write(str(run));
+		#sys.stderr.write("\n");
+		curs.execute("INSERT INTO observations VALUES (\"%d\",\"%s\",\"%s\",\"%s\",\"%s\",\"%d\")" % (filter_id, issue.key, issue.fields.priority.name, issue.fields.status.name, 'Unresolved' if (issue.fields.resolution is None) else issue.fields.resolution.name, run))
+	finally:
+		curs.close()
+
+if __name__ == "__main__":
+	_config = config.get_config()
+ 	#Logging
+	logging.basicConfig()
+	logger = logging.getLogger()
+	#Options
+	j = connect_jira(logger, _config.jira_url,_config.jira_username,_config.jira_password)
+	#Database
+	conn = connect(_config.database_trunk)
+ 	#Timestamp
+	t = time.time()
+	run = create_new_run(t)
+	#Get all the filters from the database
+	filters = list_filters(conn)
+	#Filter
+	for filter_key in filters.keys():
+		filter_id = filters[filter_key]
+		filter_object = j.filter(filter_id)
+		filter_issues = j.search_issues(filter_object.jql, maxResults=5000)
+		logger.info("Filter %d: %s" % (filter_key, filter_id))
+		logger.info("-----------------------------------------------------")
+ 		for issue_object in filter_issues:
+			logger.info(issue_object.key)
+			add_observation(conn,filter_key,issue_object,run)
+	conn.commit()
