@@ -1,0 +1,20 @@
+> sqlite3 ~/data/defect_dashboard/tickets_trunk.db 
+
+To find which runs took place on which days:
+
+> SELECT id,datetime(time,'unixepoch') FROM runs;
+
+Number of observations for each day:
+
+> select datetime(time,'unixepoch'),count(*) from changes join runs on changes.run = runs.id group by run;
+> select datetime(time,'unixepoch'),count(*) from observations join runs on observations.run = runs.id group by run;
+
+
+To find the current counts (for run 5, say):
+
+> SELECT team,priority,total FROM changes JOIN filters ON changes.filter_id=filters.id WHERE run == 5 ORDER BY team,priority;
+
+To find the inflows and outflows between runs 2 and 5 (say):
+
+# team|priority|incoming|reprioritised_into_priority|easy_resolved|fixed|reprioritised_out_of_priority
+> SELECT team,priority,SUM(new+from_other_team+from_unresolving),SUM(from_reprioritised),SUM(to_other_team+other_resolution),SUM(disappeared+fixed),SUM(to_reprioritised) FROM changes JOIN filters ON changes.filter_id=filters.id WHERE run > 2 AND run <=5 GROUP BY changes.filter_id,priority;

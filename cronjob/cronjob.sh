@@ -10,7 +10,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU Lesser General Public License for more details.
-
+set -ex
 # Configuration
 
 # Log location
@@ -34,7 +34,7 @@ date | tee -a $STDOUT_FILE  $STDERR_FILE
 # Get data from jira and insert in the database
 /home/ring3defects/defecttools/defecttools/ddd/retrieve_data >> $STDOUT_FILE 2>> $STDERR_FILE
 # Get data from database, compare, calculate, and update wiki
-/home/ring3defects/defecttools/defecttools/ddd/update_graphs >> $STDOUT_FILE 2>> $STDERR_FILE
+# /home/ring3defects/defecttools/defecttools/ddd/update_graphs >> $STDOUT_FILE 2>> $STDERR_FILE
 
 # MD Project
 /home/ring3defects/defecttools/defecttools/md/project_metrics >> $STDOUT_FILE 2>> $STDERR_FILE
@@ -42,8 +42,13 @@ date | tee -a $STDOUT_FILE  $STDERR_FILE
 # SCTX Project
 /home/ring3defects/defecttools/defecttools/sctx/project_tracker >> $STDOUT_FILE 2>> $STDERR_FILE
 
-# Snapshot the SQLite database.
+# Trunk owner project
+/home/ring3defects/defecttools/defecttools/ddd/retrieve_data_trunk >> $STDOUT_FILE 2>> $STDERR_FILE
+/home/ring3defects/defecttools/defecttools/ddd/update_data_trunk.pl >> $STDOUT_FILE 2>> $STDERR_FILE
+
+# Snapshot the SQLite databases.
 cp $DATA_DIR/tickets.db $DATA_DIR/backups/tickets-${DATE}.db
+cp $DATA_DIR/tickets_trunk.db $DATA_DIR/backups/tickets_trunk-${DATE}.db
 
 # Finish log entry end
 printf "===$0 Ended at: " | tee -a $STDOUT_FILE $STDERR_FILE

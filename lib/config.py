@@ -16,7 +16,7 @@ import imp
 import os
 import sys
 
-config_file = "/work/defecttools/config/config.py"
+config_file = ".defecttools/config.py"
 
 expected_keys = [
     "jira_url",

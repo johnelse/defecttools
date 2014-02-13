@@ -63,20 +63,20 @@ def get_full_report(log, resource, tickets):
 				sub_obj = resource.component(component.id)
 				string += sub_obj.name
 			single_ret.append(string)									# Components 1 
-			if obj.fields.customfield_10080 is not None:
-				single_ret.append(obj.fields.customfield_10080.value) 	# Teams 2 
+			if obj.fields.customfield_11932 is not None:  # was 10080 on tracker
+				single_ret.append(obj.fields.customfield_11932.value) 	# Teams 2 
 			else:
-				single_ret.append(obj.fields.customfield_10080)			# Failure 2
+				single_ret.append(obj.fields.customfield_11932)			# Failure 2
 			single_ret.append(obj.fields.summary)						# Summary 3
 			priority_obj = resource.priority(obj.fields.priority.id)
 			single_ret.append(priority_obj.iconUrl) 					# Priority Icon 4
 			single_ret.append(priority_obj.name)						# Priority Name 5
 			single_ret.append(obj.fields.assignee.displayName)					# Assignee 6
 			single_ret.append(obj.fields.reporter.displayName)					# Reporter 7 
-			if obj.fields.customfield_10450 is not None:
-				single_ret.append(obj.fields.customfield_10450.displayName)	# Eng. Owner 8 
+			if obj.fields.customfield_11808 is not None:  # was 10450 on tracker
+				single_ret.append(obj.fields.customfield_11808.displayName)	# Eng. Owner 8 
 			else:
-				single_ret.append(obj.fields.customfield_10450)			# Failure 8
+				single_ret.append(obj.fields.customfield_11808)			# Failure 8
 			single_ret.append(obj.fields.created)						# Created 9
 			single_ret.append(obj.fields.updated)						# Updated 10
 			days_active = get_days_active(log, obj.fields.created)		
@@ -396,7 +396,8 @@ def check_customer(status_id):
 		elif status_id == 10006:
 			return_string = 'Acknowledged'
 		else:
-			return_string = 'Unkown'
+			return_string = 'Unknown'
+			log.error("Failed to map status_id: " % status_id)
 		return return_string
 	except Exception,e:
 		log.error("Failed to check status: %s" % e)
@@ -465,7 +466,7 @@ def template_table(log, data):
 		for item in data:
 			return_string += "| ["
 			return_string += str(item[0])
-			return_string += "|https://tracker.vmd.citrix.com/browse/"
+			return_string += "|https://jira.uk.xensurce.com/browse/"
 			return_string += str(item[0])
 			return_string += "]|"
 			return_string += str(item[1])
@@ -663,7 +664,7 @@ if __name__ == "__main__":
 	logging.basicConfig()
 	log 		= logging.getLogger()
 	#Jira
-	_tracker 	= connect_jira(log, _config.tracker_url,_config.jira_username,_config.jira_password)
+	_tracker 	= connect_jira(log, _config.jira_url,_config.jira_username,_config.jira_password)
 	#Database
 	_db 		= connect_database(log,_config.db_host,_config.db_port)
 	#Check if it has any use to continue
@@ -693,11 +694,11 @@ if __name__ == "__main__":
 		insert_observation(log, _db, filter_id, tickets, timestamp)
 
 		#2. 	Insert the data in the page
-		page_title = "LCM - Weekly open SCTX status Report"
+		page_title = "LCM - Daily open SCTX status Report"
 		# Generate the page
 		page = generate_page(log, _db, _tracker, page_title)
 
 		# Insert page into confluence
-		insert_page(page, page_title)
+		#insert_page(page, page_title)
 	else:
 		log.error("Failed to execute, connection to Jira or Mongo Failed.")
